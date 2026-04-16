@@ -592,7 +592,7 @@ if not st.session_state.auth:
                     <h4 style="color: white; margin-bottom: 10px;">✨ EpiDiagnosis Pro</h4>
                     <p style="color: #f0f0f0; font-size: 14px;">
                         Licencia mensual<br>
-                        <span style="font-size: 28px; font-weight: bold; color: #ffd700;">22 US$</span>
+                        <span style="font-size: 28px; font-weight: bold; color: #ffd700;">23 US$</span>
                     </p>
                 </div>
             """, unsafe_allow_html=True)
