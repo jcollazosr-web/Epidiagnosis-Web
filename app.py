@@ -591,8 +591,8 @@ if not st.session_state.auth:
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 15px; text-align: center;">
                     <h4 style="color: white; margin-bottom: 10px;">✨ EpiDiagnosis Pro</h4>
                     <p style="color: #f0f0f0; font-size: 14px;">
-                        Licencia anual completa<br>
-                        <span style="font-size: 28px; font-weight: bold; color: #ffd700;">$299.000 COP</span>
+                        Licencia mensual<br>
+                        <span style="font-size: 28px; font-weight: bold; color: #ffd700;">22 US$</span>
                     </p>
                 </div>
             """, unsafe_allow_html=True)
