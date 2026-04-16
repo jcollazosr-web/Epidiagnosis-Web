@@ -1133,54 +1133,122 @@ elif menu == "📏 Tamaño de Muestra":
             with col_adj[int(pct*5)-1]:
                 st.metric(f"+{pct*100:.0f}% pérdida", f"N = {adj_total:,}")
                 st.caption(f"n1={adj_n1:,}, n2={adj_n2:,}")
-
 # ==========================================
-# MÓDULO 6: VIGILANCIA 6.0 (AVANZADO)
+# MÓDULO 6: VIGILANCIA 6.0 (AVANZADO) - SEIR COMPLETO
 # ==========================================
 elif menu == "📈 Vigilancia & IA":
-    st.header("📈 Vigilancia Epidemiológica Avanzada v6.0")
+    st.header("📈 Vigilancia Epidemiológica Avanzada v6.0 (Modelo SEIR)")
+
+    # Info del modelo
+    st.info("""
+    **Modelo SEIR Completo:**
+    - **S** (Susceptibles): Población en riesgo de infectarse
+    - **E** (Expuestos): Infectados en período de incubación
+    - **I** (Infectados): Casos activos con síntomas
+    - **R** (Recuperados): Inmunes o que se recuperaron
+    """)
 
     with st.expander("📥 Datos del Brote", expanded=True):
         if st.session_state.df_v is None or st.button("🔄 Reiniciar Datos"):
+            # Calcular recuperados acumulados aproximados (usando gamma ~0.1)
+            casos_acum = np.cumsum([10, 15, 25, 40, 55, 70, 90, 120, 150, 180])
+            # Recuperados ~ casos de hace ~10 días
+            recuperados_init = np.concatenate([[0], casos_acum[:-1] * 0.7])
+            session_recuperados = np.minimum(casos_acum * 0.6, recuperados_init).astype(int)
+
             st.session_state.df_v = pd.DataFrame({
                 "Dia": range(1, 11),
                 "Nuevos": [10, 15, 25, 40, 55, 70, 90, 120, 150, 180],
+                "Recuperados": session_recuperados.tolist(),
                 "Fallecidos": [0, 0, 1, 2, 3, 4, 6, 8, 10, 12]
             })
 
         df_v = st.data_editor(st.session_state.df_v, num_rows="dynamic")
         st.session_state.df_v = df_v
 
-    st.subheader("🧬 Parámetros del Modelo")
+    st.subheader("🧬 Parámetros del Modelo SEIR")
 
-    col_params = st.columns([1, 1, 1, 1])
+    col_params = st.columns([1, 1, 1, 1, 1])
     with col_params[0]:
-        beta = st.slider("β (Tasa Transmisión)", 0.1, 1.0, 0.3, 0.01)
+        beta = st.slider("β (Tasa Transmisión)", 0.1, 1.0, 0.3, 0.01,
+                        help="Probabilidad de transmisión por contacto")
     with col_params[1]:
-        gamma = st.slider("γ (Tasa Recuperación)", 0.05, 0.5, 0.1, 0.01)
+        sigma = st.slider("σ (Tasa Incubación)", 0.05, 0.5, 0.2, 0.01,
+                         help="1/período de incubación (ej: 0.2 = 5 días)")
     with col_params[2]:
-        rho = st.slider("ρ (Tasa Diagnóstico)", 0.1, 1.0, 0.4, 0.01)
+        gamma = st.slider("γ (Tasa Recuperación)", 0.05, 0.5, 0.1, 0.01,
+                         help="1/tiempo de infección (ej: 0.1 = 10 días)")
     with col_params[3]:
+        rho = st.slider("ρ (Tasa Diagnóstico)", 0.1, 1.0, 0.4, 0.01,
+                       help="Proporción de casos detectados")
+    with col_params[4]:
         n_sim = st.number_input("Sim. Monte Carlo", 50, 1000, 100, 50)
 
+    # Parámetros derivados
     r0 = beta / gamma
+    duracion_infeccion = 1 / gamma
+    periodo_incubacion = 1 / sigma
 
-    col_metrics = st.columns([1, 1, 1])
+    col_metrics = st.columns([1, 1, 1, 1, 1])
     with col_metrics[0]:
         st.metric("R0 Estimado", f"{r0:.2f}",
                  delta="🔴 Epidemia" if r0 > 1 else "🟢 Controlada",
                  delta_color="inverse" if r0 > 1 else "normal")
     with col_metrics[1]:
         casos_reales = int(df_v['Nuevos'].sum() / rho)
-        st.metric("Casos Reales (Est.)", f"{casos_reales:,}")
+        st.metric("Casos Totales", f"{casos_reales:,}")
     with col_metrics[2]:
-        ifr = df_v['Fallecidos'].sum() / df_v['Nuevos'].sum() * 100
+        ifr = df_v['Fallecidos'].sum() / casos_reales * 100 if casos_reales > 0 else 0
         st.metric("IFR (%)", f"{ifr:.2f}%")
+    with col_metrics[3]:
+        st.metric("Duración Infección", f"{duracion_infeccion:.1f} días")
+    with col_metrics[4]:
+        st.metric("Período Incubación", f"{periodo_incubacion:.1f} días")
 
     if len(df_v) > 3:
-        with st.spinner("⏳ Ejecutando modelo predictivo con IA..."):
+        with st.spinner("⏳ Ejecutando modelo SEIR + Proyecciones IA..."):
             _, _, RandomForestRegressor, _ = get_heavy_imports()
 
+            # =====================
+            # MODELO SEIR (Cálculo de R dinámico)
+            # =====================
+            days_total = len(df_v) + 30  # Histórico + proyección
+            N = casos_reales * 10  # Población total aproximada
+
+            # Estado inicial SEIR
+            I0 = casos_reales // 10  # Infectados iniciales
+            E0 = I0 * 2  # Expuestos ~2x infectados
+            R0_init = int(df_v['Recuperados'].iloc[-1]) if 'Recuperados' in df_v.columns else I0
+            S0 = N - E0 - I0 - R0_init
+
+            # Arrays para guardar resultados
+            S_arr, E_arr, I_arr, R_arr = [S0], [E0], [I0], [R0_init]
+
+            # Simular modelo SEIR
+            for t in range(1, days_total):
+                S_t = S_arr[-1]
+                E_t = E_arr[-1]
+                I_t = I_arr[-1]
+                R_t = R_arr[-1]
+
+                # Ecuaciones SEIR
+                new_infections = beta * S_t * I_t / N
+                new_exposed_to_infected = sigma * E_t
+                new_recoveries = gamma * I_t
+
+                S_new = S_t - new_infections
+                E_new = E_t + new_infections - new_exposed_to_infected
+                I_new = I_t + new_exposed_to_infected - new_recoveries
+                R_new = R_t + new_recoveries
+
+                S_arr.append(max(0, S_new))
+                E_arr.append(max(0, E_new))
+                I_arr.append(max(0, I_new))
+                R_arr.append(max(0, R_new))
+
+            # =====================
+            # PROYECCIÓN IA (para infectados observados)
+            # =====================
             model = RandomForestRegressor(n_estimators=100, random_state=42)
             model.fit(df_v[['Dia']], df_v['Nuevos'])
 
@@ -1198,9 +1266,66 @@ elif menu == "📈 Vigilancia & IA":
             p_low = np.percentile(all_sims, 2.5, axis=0)
             p_high = np.percentile(all_sims, 97.5, axis=0)
 
-            fig = go.Figure()
+            # =====================
+            # GRÁFICA SEIR COMPLETA
+            # =====================
+            fig_seir = go.Figure()
 
-            fig.add_trace(go.Scatter(
+            days_range = list(range(days_total))
+
+            # Susceptibles (S)
+            fig_seir.add_trace(go.Scatter(
+                x=days_range, y=S_arr,
+                name="S (Susceptibles)",
+                line=dict(color='#60a5fa', width=2),
+                fill='tozeroy', fillcolor='rgba(96, 165, 250, 0.2)'
+            ))
+
+            # Expuestos (E)
+            fig_seir.add_trace(go.Scatter(
+                x=days_range, y=E_arr,
+                name="E (Expuestos)",
+                line=dict(color='#f59e0b', width=2),
+                fill='tozeroy', fillcolor='rgba(245, 158, 11, 0.2)'
+            ))
+
+            # Infectados (I)
+            fig_seir.add_trace(go.Scatter(
+                x=days_range, y=I_arr,
+                name="I (Infectados)",
+                line=dict(color='#ef4444', width=3),
+                fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.3)'
+            ))
+
+            # Recuperados (R)
+            fig_seir.add_trace(go.Scatter(
+                x=days_range, y=R_arr,
+                name="R (Recuperados)",
+                line=dict(color='#10b981', width=2),
+                fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.2)'
+            ))
+
+            # Línea vertical separando histórico de proyección
+            fig_seir.add_vline(x=len(df_v)-1, line_dash="dash", line_color="white",
+                              annotation_text="Proyección")
+
+            fig_seir.update_layout(
+                title=f"📊 Modelo SEIR Completo (R0 = {r0:.2f})",
+                xaxis_title="Día",
+                yaxis_title="Población",
+                height=500,
+                template="plotly_dark",
+                legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
+            )
+
+            st.plotly_chart(fig_seir, use_container_width=True)
+
+            # =====================
+            # GRÁFICA DE INFECTADOS CON IA
+            # =====================
+            fig_ia = go.Figure()
+
+            fig_ia.add_trace(go.Scatter(
                 x=df_v["Dia"],
                 y=df_v["Nuevos"],
                 name="Histórico",
@@ -1208,7 +1333,7 @@ elif menu == "📈 Vigilancia & IA":
                 mode='lines+markers'
             ))
 
-            fig.add_trace(go.Scatter(
+            fig_ia.add_trace(go.Scatter(
                 x=futuro_x.flatten(),
                 y=p_mean,
                 name="Proyección IA",
@@ -1216,7 +1341,7 @@ elif menu == "📈 Vigilancia & IA":
                 mode='lines'
             ))
 
-            fig.add_trace(go.Scatter(
+            fig_ia.add_trace(go.Scatter(
                 x=np.concatenate([futuro_x.flatten(), futuro_x.flatten()[::-1]]),
                 y=np.concatenate([p_high, p_low[::-1]]),
                 fill='toself',
@@ -1225,25 +1350,49 @@ elif menu == "📈 Vigilancia & IA":
                 name="IC 95%"
             ))
 
-            fig.update_layout(
-                title="📈 Proyección de Casos con Monte Carlo",
+            fig_ia.update_layout(
+                title="📈 Proyección de Casos Nuevos (Monte Carlo)",
                 xaxis_title="Día",
                 yaxis_title="Casos Nuevos",
-                height=500,
+                height=400,
                 template="plotly_dark"
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig_ia, use_container_width=True)
 
-            df_proy = pd.DataFrame({
-                "Día": futuro_x.flatten(),
-                "Proyección": p_mean.astype(int),
-                "IC Inferior": p_low.astype(int),
-                "IC Superior": p_high.astype(int)
-            })
-            with st.expander("📋 Tabla de Proyecciones"):
+            # =====================
+            # TABLAS DE RESULTADOS
+            # =====================
+            col_tabs = st.tabs(["📋 Proyecciones IA", "📊 Resumen SEIR"])
+
+            with col_tabs[0]:
+                df_proy = pd.DataFrame({
+                    "Día": futuro_x.flatten(),
+                    "Proyección": p_mean.astype(int),
+                    "IC Inferior": p_low.astype(int),
+                    "IC Superior": p_high.astype(int)
+                })
                 st.dataframe(df_proy, use_container_width=True)
 
+            with col_tabs[1]:
+                final_day = len(df_v) + 14
+                resumen_seir = pd.DataFrame({
+                    "Día": [1, final_day],
+                    "S (Susceptibles)": [int(S_arr[0]), int(S_arr[final_day])],
+                    "E (Expuestos)": [int(E_arr[0]), int(E_arr[final_day])],
+                    "I (Infectados)": [int(I_arr[0]), int(I_arr[final_day])],
+                    "R (Recuperados)": [int(R_arr[0]), int(R_arr[final_day])],
+                    "% Recuperados": [f"{R_arr[0]/N*100:.1f}%", f"{R_arr[final_day]/N*100:.1f}%"]
+                })
+                st.dataframe(resumen_seir, use_container_width=True)
+
+                st.markdown(f"""
+                **Resumen SEIR:**
+                - Población total: **{N:,}**
+                - R0 = {r0:.2f} ({'Epidemia en expansión' if r0 > 1 else 'Epidemia controlada'})
+                - Tiempo de infección: **{duracion_infeccion:.1f} días**
+                - Período de incubación: **{periodo_incubacion:.1f} días**
+                """)
 # ==========================================
 # MÓDULO 7: LITERATURA PICO
 # ==========================================
