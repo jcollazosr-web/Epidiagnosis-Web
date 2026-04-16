@@ -730,8 +730,9 @@ if menu == "🏠 Dashboard & Cloud":
 
         with st.expander("📊 Resumen Estadístico"):
             st.dataframe(df.describe(), use_container_width=True)
-
-# ==========================================
+            
+            
+    # ==========================================
 # MÓDULO 2: LIMPIEZA DE DATOS
 # ==========================================
 elif menu == "🧹 Limpieza de Datos":
@@ -831,7 +832,7 @@ elif menu == "🧹 Limpieza de Datos":
                     st.success(f"✅ Eliminados {len(out)} outliers")
         else:
             st.info("Seleccione una columna numérica para analizar outliers")
-
+            
 # ==========================================
 # MÓDULO 3: BIOESTADÍSTICA BÁSICA
 # ==========================================
@@ -844,61 +845,531 @@ elif menu == "📊 Bioestadística":
 
     df = st.session_state.df_master
 
-    col_vars = st.columns(2)
-    with col_vars[0]:
-        vn = st.selectbox("Variable Numérica (Y):", df.select_dtypes(include=np.number).columns)
-    with col_vars[1]:
-        vc = st.selectbox("Variable Categórica (X):", df.columns)
+    # Selector de tipo de análisis
+    analysis_type = st.radio(
+        "🎯 Tipo de Análisis:",
+        ["📊 Comparación de Grupos", "📈 Una Variable", "📉 Correlación"],
+        horizontal=True
+    )
 
-    if st.button("🔬 EJECUTAR ANÁLISIS", use_container_width=True):
-        with st.spinner("⏳ Procesando análisis estadístico..."):
-            _, _, _, stats = get_heavy_imports()
+    # =====================
+    # COMPARACIÓN DE GRUPOS
+    # =====================
+    if analysis_type == "📊 Comparación de Grupos":
+        st.markdown("### Seleccionar Variables")
 
-            clean_y = df[vn].dropna()
-            stat, p_norm = stats.shapiro(clean_y[:5000])
+        col_vars = st.columns([1, 1, 1])
 
-            col_res = st.columns(3)
-            with col_res[0]:
-                st.metric("Shapiro p-value", f"{p_norm:.4f}")
-            with col_res[1]:
-                st.metric("N. Observaciones", len(clean_y))
-            with col_res[2]:
-                st.metric("Media", f"{clean_y.mean():.2f}")
+        with col_vars[0]:
+            vn = st.selectbox("Variable Numérica (Y):", 
+                             df.select_dtypes(include=np.number).columns,
+                             help="Variable de resultado (dependiente)")
 
-            grupos = [df[df[vc] == g][vn].dropna() for g in df[vc].unique() if len(df[df[vc] == g][vn].dropna()) > 0]
+        with col_vars[1]:
+            vc = st.selectbox("Variable Categórica (X/Grupo):", 
+                             df.columns,
+                             help="Variable de grouping (independiente)")
 
-            if len(grupos) < 2:
-                st.error("Se requieren al menos 2 grupos con datos")
-            else:
-                if p_norm > 0.05:
-                    st.info("📊 Distribución Normal: Se aplica ANOVA / T-Test")
-                    if len(grupos) > 2:
-                        res = stats.f_oneway(*grupos)
-                        test_name = "ANOVA"
-                    else:
-                        res = stats.ttest_ind(grupos[0], grupos[1])
-                        test_name = "T-Test"
+        with col_vars[2]:
+            alpha_norm = st.select_slider("α Normalidad:", 
+                                         options=[0.01, 0.05, 0.10], value=0.05,
+                                         help="Nivel de significancia para test de Shapiro")
+
+        # Opciones avanzadas
+        with st.expander("⚙️ Opciones Avanzadas"):
+            col_opts = st.columns(3)
+            with col_opts[0]:
+                show_ci = st.checkbox("Mostrar IC 95%", value=True)
+            with col_opts[1]:
+                show_power = st.checkbox("Calcular Poder", value=True)
+            with col_opts[2]:
+                equal_var = st.checkbox("Igualar Varianzas", value=True)
+
+        if st.button("🔬 EJECUTAR ANÁLISIS", use_container_width=True):
+            with st.spinner("⏳ Procesando análisis estadístico..."):
+                _, _, _, stats = get_heavy_imports()
+
+                # Preparar datos
+                clean_data = df[[vn, vc]].dropna()
+                grupos_data = {g: clean_data[clean_data[vc] == g][vn].values 
+                              for g in clean_data[vc].unique()}
+                grupos = [g for g in grupos_data.values() if len(g) > 0]
+                nombres_grupos = [g for g, v in grupos_data.items() if len(v) > 0]
+
+                if len(grupos) < 2:
+                    st.error("Se requieren al menos 2 grupos con datos")
+                    st.stop()
+
+                # Limpiar variable Y
+                clean_y = clean_data[vn]
+                stat, p_norm = stats.shapiro(clean_y[:5000]) if len(clean_y) <= 5000 else stats.normaltest(clean_y)
+
+                # Resultados de normalidad
+                st.markdown("---")
+                st.markdown("### 📊 Resultados de Normalidad")
+
+                col_norm = st.columns(3)
+                with col_norm[0]:
+                    st.metric("Test de Normalidad", "Shapiro-Wilk" if len(clean_y) <= 5000 else "D'Agostino")
+                with col_norm[1]:
+                    p_color = "normal" if p_norm > 0.05 else "inverse"
+                    st.metric("p-value", f"{p_norm:.4f}", 
+                             delta="Normal" if p_norm > 0.05 else "No Normal",
+                             delta_color=p_color)
+                with col_norm[2]:
+                    st.metric("N. Total", len(clean_y))
+
+                # Normalidad por grupo
+                st.markdown("#### Normalidad por Grupo")
+                normality_results = []
+                for nombre, datos in zip(nombres_grupos, grupos):
+                    if len(datos) >= 3:
+                        stat_g, p_g = stats.shapiro(datos[:5000]) if len(datos) <= 5000 else stats.normaltest(datos)
+                        normalidad = "Normal" if p_g > alpha_norm else "No Normal"
+                        normalidad_icon = "✅" if p_g > alpha_norm else "⚠️"
+                        normalidad_color = "#10b981" if p_g > alpha_norm else "#f59e0b"
+                        normality_results.append({
+                            "Grupo": nombre,
+                            "N": len(datos),
+                            "Media": f"{np.mean(datos):.2f}",
+                            "DS": f"{np.std(datos):.2f}",
+                            "p-normalidad": f"{p_g:.4f}",
+                            "Distribución": f"{normalidad_icon} {normalidad}"
+                        })
+                
+                if normality_results:
+                    df_norm = pd.DataFrame(normality_results)
+                    st.dataframe(df_norm, use_container_width=True, hide_index=True)
+
+                # Selección de prueba
+                if p_norm > alpha_norm:
+                    st.info(f"📊 **Distribución Normal** (p={p_norm:.4f} > {alpha_norm}): Se aplica prueba paramétrica")
+                    is_normal = True
                 else:
-                    st.warning("⚠️ Distribución No Normal: Se aplica Kruskal-Wallis / Mann-Whitney")
-                    if len(grupos) > 2:
+                    st.warning(f"⚠️ **Distribución No Normal** (p={p_norm:.4f} ≤ {alpha_norm}): Se aplica prueba no paramétrica")
+                    is_normal = False
+
+                # Homogeneidad de varianzas (Levene)
+                if len(grupos) >= 2:
+                    stat_lev, p_lev = stats.levene(*grupos)
+                    homocedasticidad = p_lev > 0.05
+                    
+                    with col_norm[1]:
+                        st.metric("Levene p-value", f"{p_lev:.4f}",
+                                 delta="Iguales" if homocedasticidad else "Diferentes",
+                                 delta_color="normal" if homocedasticidad else "inverse")
+
+                # Ejecución de pruebas
+                st.markdown("---")
+                st.markdown("### 🔬 Resultados de la Prueba Estadística")
+
+                if len(grupos) > 2:
+                    # Múltiples grupos
+                    if is_normal:
+                        if equal_var:
+                            res = stats.f_oneway(*grupos)
+                            test_name = "ANOVA (One-Way)"
+                            effect_name = "Eta-squared (η²)"
+                            # Calcular eta-squared
+                            grand_mean = np.mean(clean_y)
+                            ss_between = sum(len(g) * (np.mean(g) - grand_mean)**2 for g in grupos)
+                            ss_total = sum((clean_y - grand_mean)**2)
+                            effect_size = ss_between / ss_total if ss_total > 0 else 0
+                        else:
+                            res = stats.kruskal(*grupos)
+                            test_name = "Kruskal-Wallis"
+                            effect_name = "Epsilon-squared (ε²)"
+                            # Epsilon-squared para Kruskal
+                            H = res.statistic
+                            n = len(clean_y)
+                            k = len(grupos)
+                            effect_size = (H - k + 1) / (n - k) if n > k else 0
+                    else:
                         res = stats.kruskal(*grupos)
                         test_name = "Kruskal-Wallis"
+                        effect_name = "Epsilon-squared (ε²)"
+                        H = res.statistic
+                        n = len(clean_y)
+                        k = len(grupos)
+                        effect_size = (H - k + 1) / (n - k) if n > k else 0
+                else:
+                    # Dos grupos
+                    if is_normal:
+                        res = stats.ttest_ind(grupos[0], grupos[1], equal_var=equal_var)
+                        test_name = f"T-Test{' (Welch)' if not equal_var else ''}"
+                        effect_name = "Cohen's d"
+                        # Cohen's d
+                        mean_diff = np.mean(grupos[0]) - np.mean(grupos[1])
+                        pooled_std = np.sqrt(((len(grupos[0])-1)*np.var(grupos[0], ddof=1) + 
+                                             (len(grupos[1])-1)*np.var(grupos[1], ddof=1)) / 
+                                            (len(grupos[0]) + len(grupos[1]) - 2))
+                        effect_size = mean_diff / pooled_std if pooled_std > 0 else 0
                     else:
                         res = stats.mannwhitneyu(grupos[0], grupos[1])
-                        test_name = "Mann-Whitney"
+                        test_name = "Mann-Whitney U"
+                        effect_name = "r (rank-biserial)"
+                        # Rank-biserial correlation
+                        n1, n2 = len(grupos[0]), len(grupos[1])
+                        effect_size = (2 * res.statistic / (n1 * n2)) - 1
 
+                # Interpretación del tamaño del efecto
+                if effect_name == "Cohen's d":
+                    if abs(effect_size) < 0.2:
+                        effect_interp = "Muy pequeño"
+                        effect_color = "gray"
+                    elif abs(effect_size) < 0.5:
+                        effect_interp = "Pequeño"
+                        effect_color = "blue"
+                    elif abs(effect_size) < 0.8:
+                        effect_interp = "Mediano"
+                        effect_color = "orange"
+                    else:
+                        effect_interp = "Grande"
+                        effect_color = "red"
+                elif effect_name in ["Eta-squared (η²)", "Epsilon-squared (ε²)"]:
+                    if effect_size < 0.01:
+                        effect_interp = "Muy pequeño"
+                        effect_color = "gray"
+                    elif effect_size < 0.06:
+                        effect_interp = "Pequeño"
+                        effect_color = "blue"
+                    elif effect_size < 0.14:
+                        effect_interp = "Mediano"
+                        effect_color = "orange"
+                    else:
+                        effect_interp = "Grande"
+                        effect_color = "red"
+                else:
+                    if abs(effect_size) < 0.1:
+                        effect_interp = "Muy pequeño"
+                        effect_color = "gray"
+                    elif abs(effect_size) < 0.3:
+                        effect_interp = "Pequeño"
+                        effect_color = "blue"
+                    elif abs(effect_size) < 0.5:
+                        effect_interp = "Mediano"
+                        effect_color = "orange"
+                    else:
+                        effect_interp = "Grande"
+                        effect_color = "red"
+
+                # Mostrar métricas principales
+                col_res = st.columns(4)
+
+                with col_res[0]:
+                    st.metric("Prueba", test_name)
                 with col_res[1]:
-                    st.metric(f"Test Aplicado", test_name)
+                    st.metric("Estadístico", f"{res.statistic:.2f}")
+                with col_res[2]:
+                    st.metric("p-value", f"{res.pvalue:.6f}",
+                             delta="Significativo" if res.pvalue < 0.05 else "No significativo",
+                             delta_color="off" if res.pvalue < 0.05 else "normal")
+                with col_res[3]:
+                    st.metric(effect_name, f"{effect_size:.3f}",
+                             delta=effect_interp,
+                             delta_color=effect_color)
+
+                # IC 95% de la diferencia de medias (si aplica)
+                if show_ci and len(grupos) == 2 and is_normal:
+                    mean1, mean2 = np.mean(grupos[0]), np.mean(grupos[1])
+                    se_diff = np.sqrt(np.var(grupos[0], ddof=1)/len(grupos[0]) + 
+                                      np.var(grupos[1], ddof=1)/len(grupos[1]))
+                    df_se = len(grupos[0]) + len(grupos[1]) - 2
+                    t_crit = stats.t.ppf(0.975, df_se)
+                    
+                    diff = mean1 - mean2
+                    ci_low = diff - t_crit * se_diff
+                    ci_high = diff + t_crit * se_diff
+                    
+                    st.markdown(f"""
+                    **Diferencia de Medias:** {diff:.2f} (IC 95%: [{ci_low:.2f}, {ci_high:.2f}])
+                    """)
+
+                # Cálculo de poder (post-hoc)
+                if show_power:
+                    from statsmodels.stats.power import TTestIndPower, FTestAnovaPower
+                    
+                    effect_for_power = abs(effect_size) if abs(effect_size) > 0 else 0.5
+                    n_obs = min(len(grupos[0]), len(grupos[1])) if len(grupos) == 2 else len(clean_y)
+                    
+                    if len(grupos) > 2:
+                        power_analysis = FTestAnovaPower()
+                        power_calc = power_analysis.solve_power(effect_for_power, nobs=n_obs, alpha=0.05, df_between=len(grupos)-1)
+                    else:
+                        power_analysis = TTestIndPower()
+                        power_calc = power_analysis.solve_power(effect_for_power, nobs=n_obs, alpha=0.05, ratio=len(grupos[1])/len(grupos[0]))
+                    
+                    with col_res[1]:
+                        st.metric("Poder Observado", f"{power_calc:.1%}",
+                                 delta="Adecuado (≥80%)" if power_calc >= 0.8 else "Bajo (<80%)",
+                                 delta_color="normal" if power_calc >= 0.8 else "inverse")
+
+                # Comparaciones post-hoc (Tukey o Mann-Whitney por pares)
+                if len(grupos) > 2 and res.pvalue < 0.05:
+                    st.markdown("#### 🔍 Comparaciones Post-Hoc (Tukey HSD)")
+                    
+                    from scipy.stats import tukey_hsd
+                    
+                    try:
+                        if is_normal:
+                            tukey_result = tukey_hsd(*grupos)
+                            
+                            posthoc_data = []
+                            for i, g1 in enumerate(nombres_grupos):
+                                for j, g2 in enumerate(nombres_grupos):
+                                    if i < j:
+                                        p_adj = tukey_result.pvalue[i, j]
+                                        mean_diff = np.mean(grupos_data[g1]) - np.mean(grupos_data[g2])
+                                        significant = "*" if p_adj < 0.05 else ""
+                                        significant += "**" if p_adj < 0.01 else ""
+                                        significant += "***" if p_adj < 0.001 else ""
+                                        posthoc_data.append({
+                                            "Comparación": f"{g1} vs {g2}",
+                                            "Diferencia": f"{mean_diff:.2f}",
+                                            "p-ajustado": f"{p_adj:.4f}",
+                                            "Significativo": significant
+                                        })
+                            
+                            df_posthoc = pd.DataFrame(posthoc_data)
+                            st.dataframe(df_posthoc, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Para distribuciones no normales, se recomienda usar pruebas de Dunn o Bonferroni-Nemenyi.")
+                    except Exception as e:
+                        st.warning(f"No se pudo realizar Tukey: {e}")
+
+                # Visualización
+                st.markdown("---")
+                st.markdown("### 📊 Visualización")
+
+                fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+
+                # Boxplot
+                ax1 = axes[0]
+                box_data = [grupos_data[g] for g in nombres_grupos]
+                bp = ax1.boxplot(box_data, labels=nombres_grupos, patch_artist=True)
+                
+                colors_box = plt.cm.Set2(np.linspace(0, 1, len(grupos)))
+                for patch, color in zip(bp['boxes'], colors_box):
+                    patch.set_facecolor(color)
+                    patch.set_alpha(0.7)
+                
+                ax1.set_ylabel(vn)
+                ax1.set_title('Boxplot por Grupo')
+                ax1.grid(True, alpha=0.3, axis='y')
+                
+                # Scatter + media
+                ax2 = axes[1]
+                means = [np.mean(g) for g in grupos]
+                stds = [np.std(g) for g in grupos]
+                x_pos = range(len(grupos))
+                ax2.bar(x_pos, means, yerr=stds, capsize=5, color=colors_box, alpha=0.7, edgecolor='black')
+                ax2.set_xticks(x_pos)
+                ax2.set_xticklabels(nombres_grupos)
+                ax2.set_ylabel(vn)
+                ax2.set_title('Media ± DS')
+                ax2.grid(True, alpha=0.3, axis='y')
+                
+                # Histogramas superpuestos
+                ax3 = axes[2]
+                for i, (nombre, datos) in enumerate(zip(nombres_grupos, grupos)):
+                    ax3.hist(datos, bins=20, alpha=0.5, label=nombre, color=colors_box[i])
+                ax3.set_xlabel(vn)
+                ax3.set_ylabel('Frecuencia')
+                ax3.set_title('Distribución por Grupo')
+                ax3.legend()
+                ax3.grid(True, alpha=0.3)
+
+                plt.tight_layout()
+                st.pyplot(fig)
+
+                # Interpretación
+                st.markdown("---")
+                st.markdown("### 📝 Interpretación")
 
                 if res.pvalue < 0.05:
-                    st.success(f"✅ **Resultado: p = {res.pvalue:.5f}** → Diferencia significativa (α=0.05)")
+                    conclusion = "**SI hay diferencia estadísticamente significativa** entre los grupos analizados."
+                    st.success(f"""
+                    {conclusion}
+                    
+                    - **Prueba utilizada:** {test_name}
+                    - **Estadístico:** {res.statistic:.2f}
+                    - **p-value:** {res.pvalue:.6f}
+                    - **{effect_name}:** {effect_size:.3f} ({effect_interp})
+                    - **Conclusión práctica:** La diferencia observada es {"clínicamente relevante" if abs(effect_size) >= 0.5 else "de magnitud " + effect_interp.lower()}
+                    """)
                 else:
-                    st.info(f"ℹ️ **Resultado: p = {res.pvalue:.5f}** → No hay diferencia significativa")
+                    conclusion = "**NO hay diferencia estadísticamente significativa** entre los grupos."
+                    st.info(f"""
+                    {conclusion}
+                    
+                    - **Prueba utilizada:** {test_name}
+                    - **Estadístico:** {res.statistic:.2f}
+                    - **p-value:** {res.pvalue:.6f}
+                    - **{effect_name}:** {effect_size:.3f} ({effect_interp})
+                    """)
 
-                fig = px.box(df, x=vc, y=vn, color=vc, notched=True, points="outliers")
-                fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+                # Tabla resumen de grupos
+                st.markdown("---")
+                st.markdown("### 📋 Resumen Descriptivo por Grupo")
 
+                summary_data = []
+                for nombre, datos in zip(nombres_grupos, grupos):
+                    summary_data.append({
+                        "Grupo": nombre,
+                        "N": len(datos),
+                        "Media": f"{np.mean(datos):.2f}",
+                        "Mediana": f"{np.median(datos):.2f}",
+                        "DS": f"{np.std(datos):.2f}",
+                        "Mín": f"{np.min(datos):.2f}",
+                        "Máx": f"{np.max(datos):.2f}",
+                        "IQR": f"{np.percentile(datos, 75) - np.percentile(datos, 25):.2f}"
+                    })
+
+                df_summary = pd.DataFrame(summary_data)
+                st.dataframe(df_summary, use_container_width=True, hide_index=True)
+
+    # =====================
+    # UNA VARIABLE
+    # =====================
+    elif analysis_type == "📈 Una Variable":
+        st.markdown("### Análisis de Una Variable")
+        
+        var_single = st.selectbox("Seleccionar Variable:", 
+                                  df.select_dtypes(include=np.number).columns)
+
+        if st.button("📊 ANALIZAR VARIABLE", use_container_width=True):
+            data = df[var_single].dropna()
+
+            # Estadísticas descriptivas
+            col_stats = st.columns(4)
+
+            with col_stats[0]:
+                st.metric("N", len(data))
+                st.metric("Media", f"{data.mean():.2f}")
+            with col_stats[1]:
+                st.metric("Mediana", f"{data.median():.2f}")
+                st.metric("Moda", f"{data.mode().values[0]:.2f}")
+            with col_stats[2]:
+                st.metric("DS", f"{data.std():.2f}")
+                st.metric("Varianza", f"{data.var():.2f}")
+            with col_stats[3]:
+                st.metric("Mín", f"{data.min():.2f}")
+                st.metric("Máx", f"{data.max():.2f}")
+
+            # Normalidad
+            stat, p_norm = stats.shapiro(data[:5000]) if len(data) <= 5000 else stats.normaltest(data)
+            
+            st.markdown(f"""
+            **Test de Normalidad:** p = {p_norm:.4f}
+            - {"✅ Distribución Normal" if p_norm > 0.05 else "⚠️ Distribución No Normal"}
+            """)
+
+            # Visualización
+            fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+            axes[0].hist(data, bins=30, edgecolor='black', alpha=0.7)
+            axes[0].axvline(data.mean(), color='red', linestyle='--', label=f'Media: {data.mean():.2f}')
+            axes[0].axvline(data.median(), color='green', linestyle='--', label=f'Mediana: {data.median():.2f}')
+            axes[0].set_xlabel(var_single)
+            axes[0].set_ylabel('Frecuencia')
+            axes[0].legend()
+            axes[0].set_title('Histograma')
+
+            axes[1].boxplot(data, vert=True, patch_artist=True)
+            axes[1].set_ylabel(var_single)
+            axes[1].set_title('Boxplot')
+
+            plt.tight_layout()
+            st.pyplot(fig)
+
+    # =====================
+    # CORRELACIÓN
+    # =====================
+    elif analysis_type == "📉 Correlación":
+        st.markdown("### Análisis de Correlación")
+
+        col_corr = st.columns(2)
+
+        with col_corr[0]:
+            var_x = st.selectbox("Variable X:", 
+                                df.select_dtypes(include=np.number).columns,
+                                key="var_x")
+
+        with col_corr[1]:
+            var_y = st.selectbox("Variable Y:", 
+                                df.select_dtypes(include=np.number).columns,
+                                key="var_y")
+
+        if var_x == var_y:
+            st.warning("Seleccione dos variables diferentes")
+        elif st.button("🔗 ANALIZAR CORRELACIÓN", use_container_width=True):
+            # Limpiar datos
+            clean_corr = df[[var_x, var_y]].dropna()
+            x = clean_corr[var_x]
+            y = clean_corr[var_y]
+
+            # Pearson
+            r_pearson, p_pearson = stats.pearsonr(x, y)
+            
+            # Spearman
+            r_spearman, p_spearman = stats.spearmanr(x, y)
+
+            col_results = st.columns(4)
+
+            with col_results[0]:
+                st.metric("Pearson r", f"{r_pearson:.3f}")
+                st.metric("Pearson p", f"{p_pearson:.4f}")
+            with col_results[1]:
+                st.metric("Spearman ρ", f"{r_spearman:.3f}")
+                st.metric("Spearman p", f"{p_spearman:.4f}")
+            with col_results[2]:
+                # Interpretación correlación
+                if abs(r_pearson) < 0.1:
+                    interp = "Muy débil"
+                elif abs(r_pearson) < 0.3:
+                    interp = "Débil"
+                elif abs(r_pearson) < 0.5:
+                    interp = "Moderada"
+                elif abs(r_pearson) < 0.7:
+                    interp = "Fuerte"
+                else:
+                    interp = "Muy fuerte"
+                
+                st.metric("Interpretación", interp,
+                         delta="Positiva" if r_pearson > 0 else "Negativa",
+                         delta_color="normal" if r_pearson > 0 else "inverse")
+            with col_results[3]:
+                st.metric("N", len(x))
+
+            # Scatter plot
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.scatter(x, y, alpha=0.5)
+            
+            # Línea de tendencia
+            z = np.polyfit(x, y, 1)
+            p = np.poly1d(z)
+            ax.plot(x.sort_values(), p(x.sort_values()), "r--", alpha=0.8, label=f'Tendencia: y = {z[0]:.2f}x + {z[1]:.2f}')
+            
+            ax.set_xlabel(var_x)
+            ax.set_ylabel(var_y)
+            ax.set_title(f'Correlación: r = {r_pearson:.3f}, p = {p_pearson:.4f}')
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            st.pyplot(fig)
+
+            # Interpretación
+            if p_pearson < 0.05:
+                st.success(f"""
+                **Existe correlación estadísticamente significativa** entre {var_x} y {var_y}.
+                
+                - r = {r_pearson:.3f} indica una asociación {interp.lower()} {"positiva" if r_pearson > 0 else "negativa"}
+                - R² = {r_pearson**2:.3f}: El {r_pearson**2*100:.1f}% de la variabilidad es explicada por la relación
+                """)
+            else:
+                st.info(f"No se encontró correlación estadísticamente significativa (p = {p_pearson:.4f})")
+                
 # ==========================================
 # MÓDULO 4: CALCULADORA 2x2
 # ==========================================
@@ -906,129 +1377,305 @@ elif menu == "🔢 Calculadora 2x2":
     st.header("🔢 Calculadora de Tablas 2x2")
     st.markdown("### Configure su tabla de contingencia")
 
+    # Selector de tipo de estudio
+    study_design = st.radio(
+        "📋 Diseño del Estudio:",
+        ["Cohorte (expuestos → enfermedad)", "Casos y Controles", "Prueba Diagnóstica"],
+        horizontal=True
+    )
+
     col_t1, col_t2 = st.columns(2)
 
     with col_t1:
         st.markdown("#### 📊 Tabla 2x2")
-        st.markdown("""
-        <table style="width:100%; border-collapse: collapse;">
-            <tr style="background: #1e293b;">
-                <th style="padding: 10px; border: 1px solid #3b82f6;"></th>
-                <th style="padding: 10px; border: 1px solid #3b82f6;">Enfermedad (+)</th>
-                <th style="padding: 10px; border: 1px solid #3b82f6;">Enfermedad (-)</th>
-            </tr>
-            <tr style="background: #334155;">
-                <td style="padding: 10px; border: 1px solid #3b82f6; font-weight: bold;">Expuesto (+)</td>
-                <td style="padding: 10px; border: 1px solid #3b82f6; text-align: center;">a</td>
-                <td style="padding: 10px; border: 1px solid #3b82f6; text-align: center;">b</td>
-            </tr>
-            <tr style="background: #475569;">
-                <td style="padding: 10px; border: 1px solid #3b82f6; font-weight: bold;">No Expuesto (-)</td>
-                <td style="padding: 10px; border: 1px solid #3b82f6; text-align: center;">c</td>
-                <td style="padding: 10px; border: 1px solid #3b82f6; text-align: center;">d</td>
-            </tr>
-        </table>
-        """, unsafe_allow_html=True)
+        
+        # Crear inputs para los 4 valores
+        col_a = st.columns(2)
+        with col_a[0]:
+            a = st.number_input("a (Expuestos + Enfermedad +)", 
+                               min_value=0, value=30, step=1,
+                               help="Casos expuestos con la enfermedad")
+        with col_a[1]:
+            b = st.number_input("b (Expuestos + Enfermedad -)", 
+                               min_value=0, value=70, step=1,
+                               help="Casos expuestos sin la enfermedad")
+        
+        col_b = st.columns(2)
+        with col_b[0]:
+            c = st.number_input("c (No Expuestos + Enfermedad +)", 
+                               min_value=0, value=20, step=1,
+                               help="Controles con la enfermedad")
+        with col_b[1]:
+            d = st.number_input("d (No Expuestos + Enfermedad -)", 
+                               min_value=0, value=80, step=1,
+                               help="Controles sin la enfermedad")
+
+        # Validación
+        total_expuestos = a + b
+        total_no_expuestos = c + d
+        total_enfermos = a + c
+        total_no_enfermos = b + d
+        total_general = a + b + c + d
+
+        if total_expuestos == 0 or total_no_expuestos == 0 or total_enfermos == 0 or total_no_enfermos == 0:
+            st.warning("⚠️ Algunos totales son cero. Algunas métricas no se calcularán correctamente.")
 
     with col_t2:
-        a = st.number_input("a (Expuesto + Enfermedad +)", min_value=0, value=30, step=1)
-        b = st.number_input("b (Expuesto + Enfermedad -)", min_value=0, value=70, step=1)
-        c = st.number_input("c (No Expuesto + Enfermedad +)", min_value=0, value=20, step=1)
-        d = st.number_input("d (No Expuesto + Enfermedad -)", min_value=0, value=80, step=1)
+        # Mostrar tabla con VALORES
+        st.markdown("#### 📋 Tabla Resumen")
+        
+        df_2x2_display = pd.DataFrame({
+            '': ['Expuestos (+)', 'No Expuestos (-)', 'Total'],
+            'Enfermedad (+)': [f'{a}', f'{c}', f'{a+c}'],
+            'Enfermedad (-)': [f'{b}', f'{d}', f'{b+d}'],
+            'Total': [f'{a+b}', f'{c+d}', f'{a+b+c+d}']
+        })
+        
+        # Estilo para la tabla
+        st.dataframe(df_2x2_display, hide_index=True, use_container_width=True)
+        
+        st.markdown(f"""
+        **Resumen:**
+        - Total expuestos: **{total_expuestos}**
+        - Total no expuestos: **{total_no_expuestos}**
+        - Total general: **{total_general}**
+        """)
 
-    if st.button("🧮 CALCULAR", use_container_width=True):
+    # Opción de población para FPC
+    st.markdown("#### 🌍 Población (Opcional - Corrección FPC)")
+    col_pop = st.columns([1, 1])
+    
+    with col_pop[0]:
+        population_2x2 = st.number_input(
+            "Población Total (N):",
+            min_value=0, value=0, step=100,
+            help="Tamaño de la población total. Si es 0, se asume infinita (no aplica FPC)"
+        )
+    
+    with col_pop[1]:
+        apply_fpc_2x2 = st.checkbox(
+            "Aplicar Corrección de Población Finita (FPC)",
+            value=True,
+            help="Ajusta las métricas cuando la muestra es >5% de la población"
+        )
+
+    if st.button("🧮 CALCULAR MÉTRICAS", use_container_width=True):
         metrics = calculate_2x2_metrics(a, b, c, d)
 
         st.markdown("---")
         st.markdown("### 📈 Resultados del Análisis")
 
-        # Mostrar tabla 2x2 con valores
-        col_table = st.columns(3)
-        with col_table[1]:
-            df_2x2 = pd.DataFrame({
-                'Enfermedad +': [a, c, a+c],
-                'Enfermedad -': [b, d, b+d],
-                'Total': [a+b, c+d, a+b+c+d]
-            }, index=['Expuesto', 'No Expuesto', 'Total'])
-            st.dataframe(df_2x2, use_container_width=True)
+        # Alerta FPC si aplica
+        if population_2x2 > 0 and total_general / population_2x2 > 0.05:
+            st.warning(f"⚠️ **FPC aplicada:** La muestra ({total_general}) representa el {total_general/population_2x2:.1%} de la población ({population_2x2:,})")
 
+        # Primera fila de métricas principales
         col_metrics = st.columns(4)
 
         with col_metrics[0]:
-            st.metric("📊 Sensibilidad", f"{metrics['sensitivity']:.2%}")
-            st.metric("🎯 Especificidad", f"{metrics['specificity']:.2%}")
+            st.metric("📊 Sensibilidad", f"{metrics['sensitivity']:.2%}",
+                     help="Probabilidad de que la prueba identifique correctamente a los enfermos")
+            st.metric("🎯 Especificidad", f"{metrics['specificity']:.2%}",
+                     help="Probabilidad de que la prueba identifique correctamente a los no enfermos")
 
         with col_metrics[1]:
-            st.metric("✅ VPP", f"{metrics['vpp']:.2%}")
-            st.metric("✅ VPN", f"{metrics['vpn']:.2%}")
+            st.metric("✅ VPP (Valor Predictivo +)", f"{metrics['vpp']:.2%}",
+                     help="Probabilidad de enfermedad dado resultado positivo")
+            st.metric("✅ VPN (Valor Predictivo -)", f"{metrics['vpn']:.2%}",
+                     help="Probabilidad de no enfermedad dado resultado negativo")
 
         with col_metrics[2]:
-            st.metric("📈 Odds Ratio", f"{metrics['odds_ratio']:.2f}")
-            st.metric("📉 IC 95% OR", f"[{metrics['ci_low_or']:.2f}, {metrics['ci_high_or']:.2f}]")
+            st.metric("📈 Odds Ratio (OR)", f"{metrics['odds_ratio']:.2f}",
+                     help="Asociación entre exposición y enfermedad")
+            st.metric("📉 IC 95% OR", f"[{metrics['ci_low_or']:.2f}, {metrics['ci_high_or']:.2f}]",
+                     help="Intervalo de confianza del 95% para el OR")
 
         with col_metrics[3]:
-            st.metric("⚡ Riesgo Relativo", f"{metrics['risk_ratio']:.2f}")
-            st.metric("📐 RRA (ARR)", f"{metrics['arr']:.2%}")
+            # Calcular RR con protección
+            rr_display = metrics['risk_ratio'] if metrics['prevalence_unexposed'] > 0 else 0
+            st.metric("⚡ Riesgo Relativo (RR)", f"{rr_display:.2f}",
+                     help="Reducción relativa del riesgo en expuestos vs no expuestos")
+            st.metric("📐 RRA (ARR)", f"{metrics['arr']:.2%}",
+                     help="Reducción Absoluta del Riesgo")
 
-        col_extra = st.columns(3)
+        # Segunda fila de métricas adicionales
+        st.markdown("#### 🔬 Métricas Adicionales")
+        col_extra = st.columns(4)
 
         with col_extra[0]:
-            st.metric("🧮 LR+", f"{metrics['lr_positive']:.2f}")
-            st.metric("🧮 LR-", f"{metrics['lr_negative']:.2f}")
+            st.metric("🧮 LR+ (Razón de Verosimilitud +)", f"{metrics['lr_positive']:.2f}",
+                     help="Cuánto aumenta la probabilidad de enfermedad con resultado +")
+            st.metric("🧮 LR- (Razón de Verosimilitud -)", f"{metrics['lr_negative']:.2f}",
+                     help="Cuánto reduce la probabilidad de enfermedad con resultado -")
 
         with col_extra[1]:
-            st.metric("👥 NNT", f"{metrics['nnt']:.0f}" if metrics['nnt'] != float('inf') else "∞")
+            nnt_display = f"{metrics['nnt']:.0f}" if metrics['nnt'] != float('inf') else "∞"
+            st.metric("👥 NNT (NNT)", nnt_display,
+                     help="Número de personas a tratar para evitar 1 evento")
 
         with col_extra[2]:
-            st.metric("📊 Chi²", f"{metrics['chi_square']:.2f}")
-            st.metric("📊 p-value", f"{metrics['p_value']:.4f}")
+            st.metric("📊 Chi² (Chi-cuadrado)", f"{metrics['chi_square']:.2f}",
+                     help="Estadístico de prueba de independencia")
+            st.metric("📊 p-value", f"{metrics['p_value']:.4f}",
+                     help="Significancia estadística (p < 0.05 = significativo)")
+
+        with col_extra[3]:
+            # Youden Index
+            youden = metrics['sensitivity'] + metrics['specificity'] - 1
+            st.metric("🎯 Índice de Youden", f"{youden:.3f}",
+                     help="Máximo valor de sensibilidad + especificidad - 1")
+            
+            # Prevalencia general
+            prevalence_general = total_enfermos / total_general if total_general > 0 else 0
+            st.metric("📊 Prevalencia General", f"{prevalence_general:.2%}",
+                     help="Proporción de enfermedad en la población total")
 
         # Visualización
-        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        st.markdown("---")
+        st.markdown("### 📊 Visualización Gráfica")
 
-        # Gráfico de barras de prevalencias
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+        # Gráfico 1: Comparación de prevalencias
         ax1 = axes[0]
         categories = ['Expuestos', 'No Expuestos']
         prevalences = [metrics['prevalence_exposed'] * 100, metrics['prevalence_unexposed'] * 100]
         colors = ['#ef4444', '#10b981']
-        ax1.bar(categories, prevalences, color=colors, edgecolor='black')
-        ax1.set_ylabel('Prevalencia (%)')
-        ax1.set_title('Prevalencia de Enfermedad por Exposición')
-        for i, v in enumerate(prevalences):
-            ax1.text(i, v + 1, f'{v:.1f}%', ha='center', fontweight='bold')
+        bars = ax1.bar(categories, prevalences, color=colors, edgecolor='black', width=0.6)
+        ax1.set_ylabel('Prevalencia (%)', fontsize=12)
+        ax1.set_title('Prevalencia de Enfermedad por Exposición', fontsize=14, fontweight='bold')
+        ax1.set_ylim(0, max(max(prevalences) * 1.3, 100))
+        ax1.grid(True, alpha=0.3, axis='y')
+        
+        for bar, v in zip(bars, prevalences):
+            ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                    f'{v:.1f}%', ha='center', va='bottom', fontweight='bold', fontsize=12)
 
-        # Forest plot simplificado
+        # Gráfico 2: Forest plot mejorado
         ax2 = axes[1]
-        ax2.axvline(x=1, color='red', linestyle='--', label='OR=1 (Null)')
-        ax2.errorbar(metrics['odds_ratio'], 0.5, xerr=[[metrics['odds_ratio']-metrics['ci_low_or']], [metrics['ci_high_or']-metrics['odds_ratio']]],
-                     fmt='o', color='#3b82f6', capsize=5, markersize=10)
-        ax2.set_xlim(0, max(metrics['ci_high_or'] * 1.5, 2))
-        ax2.set_ylim(-0.2, 1.2)
-        ax2.set_xlabel('Odds Ratio')
-        ax2.set_title('Forest Plot del Odds Ratio')
-        ax2.legend()
+        
+        # Línea null
+        ax2.axvline(x=1, color='red', linestyle='--', linewidth=2, label='OR = 1 (Null)')
+        
+        # Intervalo de confianza
+        ci_low = max(metrics['ci_low_or'], 0.1)
+        ci_high = metrics['ci_high_or']
+        
+        # Punto estimado
+        or_val = metrics['odds_ratio']
+        
+        # Barra de error
+        ax2.errorbar(or_val, 0.5, xerr=[[or_val - ci_low], [ci_high - or_val]],
+                    fmt='D', color='#3b82f6', capsize=10, markersize=12,
+                    linewidth=2, markeredgecolor='black', markeredgewidth=1.5,
+                    elinewidth=2)
+        
+        # Configuración del plot
+        x_max = max(ci_high * 1.3, or_val * 1.5, 3)
+        ax2.set_xlim(0, x_max)
+        ax2.set_ylim(-0.1, 1.0)
+        ax2.set_xlabel('Odds Ratio', fontsize=12)
+        ax2.set_title('Forest Plot del Odds Ratio', fontsize=14, fontweight='bold')
+        ax2.legend(loc='upper right', fontsize=10)
         ax2.set_yticks([])
+        ax2.grid(True, alpha=0.3, axis='x')
+        
+        # Anotación con valores
+        ax2.annotate(f'OR = {or_val:.2f}\nIC 95%: [{ci_low:.2f}, {ci_high:.2f}]',
+                    xy=(or_val, 0.5), xytext=(or_val * 0.7, 0.75),
+                    fontsize=10, ha='center',
+                    bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.8),
+                    arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
 
         plt.tight_layout()
         st.pyplot(fig)
 
-        # Interpretación
+        # Tabla de contingencia detallada
+        st.markdown("---")
+        st.markdown("### 📋 Tabla de Contingencia Completa")
+
+        col contingency_table = st.columns(2)
+        
+        with col_contingency_table[0]:
+            # Crear tabla bonita
+            contingency_df = pd.DataFrame({
+                ' ': ['Enfermedad +', 'Enfermedad -', 'Total'],
+                'Expuestos +': [a, b, a+b],
+                'No Expuestos -': [c, d, c+d],
+                'Total': [a+c, b+d, a+b+c+d]
+            })
+            st.dataframe(contingency_df.set_index(' '), use_container_width=True)
+
+        with col_contingency_table[1]:
+            # Proporciones
+            prop_df = pd.DataFrame({
+                ' ': ['P(Enf|Exp)', 'P(Enf|NoExp)', 'Total Enf', 'Total No-Enf'],
+                'Valor': [
+                    f'{a/(a+b)*100:.1f}%' if (a+b) > 0 else 'N/A',
+                    f'{c/(c+d)*100:.1f}%' if (c+d) > 0 else 'N/A',
+                    f'{a+c}',
+                    f'{b+d}'
+                ]
+            })
+            st.dataframe(prop_df.set_index(' '), use_container_width=True)
+
+        # Interpretación clínica
         st.markdown("---")
         st.markdown("### 📝 Interpretación Clínica")
 
-        if metrics['odds_ratio'] > 1:
-            st.warning(f"""
-            **⚠️ La exposición está asociada con MAYOR riesgo de enfermedad.**
+        or_val = metrics['odds_ratio']
+        ci_low = metrics['ci_low_or']
+        ci_high = metrics['ci_high_or']
+        
+        # Significancia
+        is_significant = ci_low > 1 or ci_high < 1
+        includes_null = ci_low <= 1 <= ci_high
 
-            - Odds Ratio = {metrics['odds_ratio']:.2f} indica que los expuestos tienen {metrics['odds_ratio']:.1f}x más odds de presentar la enfermedad
-            - El IC 95% [{metrics['ci_low_or']:.2f}, {metrics['ci_high_or']:.2f}] {'incluye' if metrics['ci_low_or'] <= 1 <= metrics['ci_high_or'] else 'NO incluye'} el valor 1
-            """)
+        if or_val > 1:
+            direction = "MAYOR"
+            direction_icon = "⚠️"
+            direction_color = "warning"
+            interpretation = f"""
+            **La exposición está asociada con {direction} riesgo de enfermedad.**
+            
+            - **Odds Ratio = {or_val:.2f}**: Los expuestos tienen {or_val:.1f}x más odds de presentar la enfermedad que los no expuestos
+            - **IC 95%: [{ci_low:.2f}, {ci_high:.2f}]**: El intervalo {'NO incluye' if not includes_null else 'incluye'} el valor nulo (OR=1)
+            - **Chi² = {metrics['chi_square']:.2f}, p = {metrics['p_value']:.4f}**: {'La asociación ES estadísticamente significativa (p<0.05)' if metrics['p_value'] < 0.05 else 'La asociación NO es estadísticamente significativa'}
+            - **NNT = {metrics['nnt']:.0f}**: Se necesitan tratar {metrics['nnt']:.0f} personas para evitar 1 caso adicional
+            """
         else:
-            st.success(f"""
-            **✅ La exposición está asociada con MENOR riesgo de enfermedad.**
+            direction = "MENOR"
+            direction_icon = "✅"
+            direction_color = "success"
+            interpretation = f"""
+            **La exposición está asociada con {direction} riesgo de enfermedad.**
+            
+            - **Odds Ratio = {or_val:.2f}**: Los expuestos tienen {(1-or_val)*100:.1f}% menos odds de presentar la enfermedad que los no expuestos
+            - **IC 95%: [{ci_low:.2f}, {ci_high:.2f}]**: El intervalo {'NO incluye' if not includes_null else 'incluye'} el valor nulo (OR=1)
+            - **Chi² = {metrics['chi_square']:.2f}, p = {metrics['p_value']:.4f}**: {'La asociación ES estadísticamente significativa (p<0.05)' if metrics['p_value'] < 0.05 else 'La asociación NO es estadísticamente significativa'}
+            """
 
-            - Odds Ratio = {metrics['odds_ratio']:.2f} indica que los expuestos tienen {(1-metrics['odds_ratio'])*100:.1f}% menos odds de presentar la enfermedad
-            - El IC 95% [{metrics['ci_low_or']:.2f}, {metrics['ci_high_or']:.2f}] {'incluye' if metrics['ci_low_or'] <= 1 <= metrics['ci_high_or'] else 'NO incluye'} el valor 1
+        if direction_color == "warning":
+            st.warning(interpretation)
+        else:
+            st.success(interpretation)
+
+        # Guía rápida
+        st.markdown("---")
+        with st.expander("📖 Guía Rápida de Métricas"):
+            st.markdown("""
+            | Métrica | Interpretación |
+            |---------|----------------|
+            | **Sensibilidad** | % de enfermos correctamente identificados |
+            | **Especificidad** | % de no enfermos correctamente identificados |
+            | **VPP** | Probabilidad de tener la enfermedad con test + |
+            | **VPN** | Probabilidad de NO tener la enfermedad con test - |
+            | **OR** | Odds de enfermedad en expuestos / Odds en no expuestos |
+            | **RR** | Riesgo en expuestos / Riesgo en no expuestos |
+            | **LR+** | >1 indica que test + aumenta probabilidad de enfermedad |
+            | **LR-** | <1 indica que test - disminuye probabilidad de enfermedad |
+            | **NNT** | Personas a tratar para evitar 1 evento |
+            | **p-value** | <0.05 indica significancia estadística |
             """)
 
 # ==========================================
@@ -1037,102 +1684,321 @@ elif menu == "🔢 Calculadora 2x2":
 elif menu == "📏 Tamaño de Muestra":
     st.header("📏 Calculadora de Tamaño de Muestra")
 
-    st.markdown("### Parámetros del Estudio")
+    # Selector de tipo de estudio
+    study_type = st.radio(
+        "🎯 Tipo de Estudio:",
+        ["📊 Cohortes (Comparación de Proporciones)", "🔬 Casos y Controles"],
+        horizontal=True
+    )
 
-    col_sample = st.columns(3)
+    # =====================
+    # CASOS Y CONTROLES
+    # =====================
+    if study_type == "🔬 Casos y Controles":
+        st.markdown("### Parámetros del Estudio de Casos y Controles")
 
-    with col_sample[0]:
-        p1 = st.number_input("Proporción Grupo 1 (p1):", min_value=0.001, max_value=0.999, value=0.30, format="%.3f",
-                            help="Proporción esperada en el grupo de intervención/expuestos")
-        alpha = st.select_slider("Nivel de significancia (α):", options=[0.01, 0.05, 0.10], value=0.05,
-                                 help="Probabilidad de error tipo I")
+        col_cc1, col_cc2 = st.columns(2)
 
-    with col_sample[1]:
-        p2 = st.number_input("Proporción Grupo 2 (p2):", min_value=0.001, max_value=0.999, value=0.50, format="%.3f",
-                            help="Proporción esperada en el grupo control/no expuestos")
-        power = st.select_slider("Poder estadístico (1-β):", options=[0.70, 0.80, 0.90, 0.95], value=0.80,
-                                help="Probabilidad de detectar un efecto real")
+        with col_cc1:
+            st.markdown("#### 📈 Parámetros Estadísticos")
+            or_expected = st.number_input(
+                "Odds Ratio Esperado (OR):",
+                min_value=0.1, max_value=10.0, value=2.0, format="%.2f",
+                help="OR que se desea detectar como significativo. Ej: 2.0 = duplica el riesgo"
+            )
+            alpha_cc = st.select_slider(
+                "Nivel de significancia (α):",
+                options=[0.01, 0.05, 0.10], value=0.05,
+                help="Probabilidad de error tipo I"
+            )
 
-    with col_sample[2]:
-        ratio = st.number_input("Ratio de asignación (n2/n1):", min_value=0.1, max_value=10.0, value=1.0, format="%.2f",
-                               help="Proporción de participantes entre grupos")
-        test_type = st.radio("Tipo de prueba:", ["Two-sided", "One-sided"], horizontal=True)
-
-    if st.button("🧮 CALCULAR TAMAÑO MUESTRAL", use_container_width=True):
-        if test_type == "One-sided":
-            alpha = alpha / 2
-
-        result = calculate_sample_size(p1, p2, alpha, power, ratio)
+        with col_cc2:
+            st.markdown("#### 👥 Diseño del Estudio")
+            ratio_cc = st.number_input(
+                "Ratio Controles:Casos:",
+                min_value=1, max_value=10, value=4, step=1,
+                help="Número de controles por cada caso. Común: 4:1 o 3:1"
+            )
+            power_cc = st.select_slider(
+                "Poder estadístico (1-β):",
+                options=[0.70, 0.80, 0.90, 0.95], value=0.80,
+                help="Probabilidad de detectar un efecto real"
+            )
 
         st.markdown("---")
-        st.markdown("### 📊 Resultados")
+        st.markdown("#### 🌍 Población (Opcional)")
+        col_pop_cc = st.columns([1, 1, 1])
 
-        col_res = st.columns(4)
+        with col_pop_cc[0]:
+            population_cc = st.number_input(
+                "Población Total (N):",
+                min_value=0, value=0, step=100,
+                help="Tamaño de la población total. Si es 0, se asume infinita"
+            )
+        with col_pop_cc[1]:
+            apply_fpc_cc = st.checkbox(
+                "Aplicar FPC",
+                value=True,
+                help="Corrección de Población Finita cuando n/N > 5%"
+            )
+        with col_pop_cc[2]:
+            test_type_cc = st.radio(
+                "Tipo de prueba:",
+                ["Two-sided", "One-sided"],
+                horizontal=True
+            )
 
-        with col_res[0]:
-            st.metric("👥 Grupo 1 (n1)", f"{result['n1']:,}")
-        with col_res[1]:
-            st.metric("👥 Grupo 2 (n2)", f"{result['n2']:,}")
-        with col_res[2]:
-            st.metric("📊 Total (N)", f"{result['total']:,}")
-        with col_res[3]:
-            nnt_calc = 1 / abs(p1 - p2) if p1 != p2 else float('inf')
-            st.metric("📐 NNT", f"{int(nnt_calc):,}" if nnt_calc != float('inf') else "∞")
+        if st.button("🧮 CALCULAR MUESTRA (CASOS-CONTROLES)", use_container_width=True):
+            if test_type_cc == "One-sided":
+                alpha_cc = alpha_cc / 2
 
-        # Visualización
-        fig, ax = plt.subplots(figsize=(10, 6))
+            result_cc = calculate_sample_size_case_control(
+                or_expected, alpha=alpha_cc, power=power_cc,
+                ratio_controls_cases=ratio_cc,
+                population=population_cc if population_cc > 0 else None,
+                apply_fpc=apply_fpc_cc
+            )
 
-        # Gráfico de poder vs tamaño de muestra
-        sample_sizes = list(range(20, result['total'] * 2, 10))
-        powers = []
-        for n in sample_sizes:
-            n1 = n / (1 + ratio)
-            n2 = n * ratio / (1 + ratio)
-            p_bar = (p1 + ratio * p2) / (1 + ratio)
-            se = np.sqrt(p1*(1-p1)/n1 + p2*(1-p2)/n2)
-            z_power = (abs(p1 - p2) / se) - 1.96
-            power_calc = norm.cdf(z_power)
-            powers.append(power_calc * 100)
+            st.markdown("---")
+            st.markdown("### 📊 Resultados - Casos y Controles")
 
-        ax.plot(sample_sizes, powers, 'b-', linewidth=2)
-        ax.axhline(y=power*100, color='red', linestyle='--', label=f'Poder objetivo: {power*100}%')
-        ax.axvline(x=result['total'], color='green', linestyle='--', label=f'N calculado: {result["total"]}')
-        ax.fill_between(sample_sizes, powers, alpha=0.3)
-        ax.set_xlabel('Tamaño de Muestra Total')
-        ax.set_ylabel('Poder Estadístico (%)')
-        ax.set_title('Curva de Poder vs Tamaño de Muestra')
-        ax.legend()
-        ax.set_ylim(0, 100)
-        ax.grid(True, alpha=0.3)
+            # Mostrar alerta si se aplicó FPC
+            if result_cc.get('fpc_applied', False):
+                st.success(f"""
+                **✅ Corrección de Población Finita (FPC) aplicada:**
+                - Muestra sin FPC: **{result_cc['n_without_fpc']:,}**
+                - Muestra con FPC: **{result_cc['total']:,}**
+                - Población total: **{population_cc:,}**
+                - Ahorro: **{result_cc['n_without_fpc'] - result_cc['total']:,} participantes**
+                """)
+            elif population_cc > 0 and not result_cc.get('fpc_applied', False):
+                st.info(f"""
+                **ℹ️ FPC no necesaria:**
+                - La muestra calculada ({result_cc['n_without_fpc']:,}) representa menos del 5% de la población ({population_cc:,})
+                - Condición: n/N = {result_cc['n_without_fpc']/population_cc:.2%} < 5%
+                """)
 
-        plt.tight_layout()
-        st.pyplot(fig)
+            col_res_cc = st.columns(4)
 
-        # Interpretación
-        st.markdown("---")
-        st.markdown("### 📝 Interpretación")
+            with col_res_cc[0]:
+                st.metric("🏥 Casos necesarios", f"{result_cc['n_cases']:,}")
+            with col_res_cc[1]:
+                st.metric("👥 Controles necesarios", f"{result_cc['n_controls']:,}")
+            with col_res_cc[2]:
+                st.metric("📊 Total (N)", f"{result_cc['total']:,}")
+            with col_res_cc[3]:
+                ratio_display = ratio_cc
+                st.metric("Ratio", f"{ratio_display}:1")
 
-        effect_size = abs(p1 - p2)
-        st.info(f"""
-        **Para detectar una diferencia de {effect_size:.1%} entre las proporciones ({p1:.1%} vs {p2:.1%}):**
+            # Visualización
+            fig_cc, ax_cc = plt.subplots(figsize=(10, 6))
 
-        - Se requieren **{result['total']:,} participantes** en total
-        - **{result['n1']:,}** en el Grupo 1 y **{result['n2']:,}** en el Grupo 2
-        - Con un poder del {power*100:.0f}% y α = {alpha*2 if test_type == "Two-sided" else alpha:.3f}
+            labels = ['Casos', 'Controles', 'Total']
+            sizes = [result_cc['n_cases'], result_cc['n_controls'], result_cc['total']]
+            colors = ['#ef4444', '#3b82f6', '#10b981']
+            
+            x_pos = np.arange(len(labels))
+            bars = ax_cc.bar(x_pos, sizes, color=colors, edgecolor='black')
+            
+            ax_cc.set_xticks(x_pos)
+            ax_cc.set_xticklabels([f'{l}\n({s:,})' for l, s in zip(labels, sizes)])
+            ax_cc.set_ylabel('Tamaño de Muestra')
+            ax_cc.set_title(f'Tamaño de Muestra para Detectar OR = {or_expected}')
+            ax_cc.grid(True, alpha=0.3, axis='y')
 
-        **Nota:** Se recomienda agregar un 10-20% adicional para posibles pérdidas de seguimiento.
-        """)
+            for bar, size in zip(bars, sizes):
+                ax_cc.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                          f'{size:,}', ha='center', va='bottom', fontweight='bold')
 
-        # Muestra ajustada
-        st.markdown("#### 🔧 Muestras Ajustadas por Pérdidas")
-        col_adj = st.columns(3)
-        for pct in [0.10, 0.15, 0.20]:
-            adj_total = int(result['total'] * (1 + pct))
-            adj_n1 = int(result['n1'] * (1 + pct))
-            adj_n2 = int(result['n2'] * (1 + pct))
-            with col_adj[int(pct*5)-1]:
-                st.metric(f"+{pct*100:.0f}% pérdida", f"N = {adj_total:,}")
-                st.caption(f"n1={adj_n1:,}, n2={adj_n2:,}")
+            plt.tight_layout()
+            st.pyplot(fig_cc)
+
+            # Interpretación
+            st.markdown("---")
+            st.markdown("### 📝 Interpretación")
+
+            st.info(f"""
+            **Para detectar un Odds Ratio de {or_expected} en un estudio de casos y controles:**
+
+            - Se requieren **{result_cc['n_cases']:,} casos** y **{result_cc['n_controls']:,} controles**
+            - **Total: {result_cc['total']:,} participantes**
+            - Ratio utilizado: {ratio_cc}:1 (controles:casos)
+            - Con un poder del {power_cc*100:.0f}% y α = {alpha_cc:.3f}
+
+            **Fórmula utilizada:** Fleiss con corrección de Yates para tablas 2x2
+            """)
+
+            # Muestra ajustada
+            st.markdown("#### 🔧 Muestras Ajustadas por Pérdidas")
+            col_adj_cc = st.columns(3)
+            for pct in [0.10, 0.15, 0.20]:
+                adj_total = int(result_cc['total'] * (1 + pct))
+                adj_cases = int(result_cc['n_cases'] * (1 + pct))
+                adj_controls = int(result_cc['n_controls'] * (1 + pct))
+                with col_adj_cc[int(pct*5)-1]:
+                    st.metric(f"+{pct*100:.0f}% pérdida", f"N = {adj_total:,}")
+                    st.caption(f"Casos={adj_cases:,}, Controles={adj_controls:,}")
+
+    # =====================
+    # COHORTES
+    # =====================
+    else:
+        st.markdown("### Parámetros del Estudio de Cohortes")
+
+        col_sample = st.columns([1, 1, 1, 1])
+
+        with col_sample[0]:
+            p1 = st.number_input(
+                "Proporción Grupo 1 (p1):",
+                min_value=0.001, max_value=0.999, value=0.30, format="%.3f",
+                help="Proporción esperada en el grupo de intervención/expuestos"
+            )
+            population = st.number_input(
+                "Población Total (N):",
+                min_value=0, value=0, step=100,
+                help="Tamaño de la población total. Si es 0, se asume infinita"
+            )
+
+        with col_sample[1]:
+            p2 = st.number_input(
+                "Proporción Grupo 2 (p2):",
+                min_value=0.001, max_value=0.999, value=0.50, format="%.3f",
+                help="Proporción esperada en el grupo control/no expuestos"
+            )
+            power = st.select_slider(
+                "Poder estadístico (1-β):",
+                options=[0.70, 0.80, 0.90, 0.95], value=0.80,
+                help="Probabilidad de detectar un efecto real"
+            )
+
+        with col_sample[2]:
+            ratio = st.number_input(
+                "Ratio de asignación (n2/n1):",
+                min_value=0.1, max_value=10.0, value=1.0, format="%.2f",
+                help="Proporción de participantes entre grupos"
+            )
+            test_type = st.radio(
+                "Tipo de prueba:",
+                ["Two-sided", "One-sided"],
+                horizontal=True
+            )
+
+        with col_sample[3]:
+            alpha = st.select_slider(
+                "Nivel de significancia (α):",
+                options=[0.01, 0.05, 0.10], value=0.05,
+                help="Probabilidad de error tipo I"
+            )
+            use_fpc = st.checkbox(
+                "Aplicar FPC",
+                value=True,
+                help="Corrección de Población Finita cuando n/N > 5%"
+            )
+
+        if st.button("🧮 CALCULAR MUESTRA (COHORTES)", use_container_width=True):
+            if test_type == "One-sided":
+                alpha = alpha / 2
+
+            pop_for_calc = population if population > 0 else None
+            result = calculate_sample_size_cohort(p1, p2, alpha, power, ratio, pop_for_calc, use_fpc)
+
+            st.markdown("---")
+            st.markdown("### 📊 Resultados - Cohortes")
+
+            if result.get('fpc_applied', False):
+                st.success(f"""
+                **✅ Corrección de Población Finita (FPC) aplicada:**
+                - Muestra sin FPC: **{result['n_without_fpc']:,}**
+                - Muestra con FPC: **{result['total']:,}**
+                - Población total: **{population:,}**
+                - Ahorro: **{result['n_without_fpc'] - result['total']:,} participantes**
+                """)
+            elif population > 0 and not result.get('fpc_applied', False):
+                st.info(f"""
+                **ℹ️ FPC no necesaria:**
+                - La muestra calculada ({result['n_without_fpc']:,}) representa menos del 5% de la población ({population:,})
+                - Condición: n/N = {result['n_without_fpc']/population:.2%} < 5%
+                """)
+
+            col_res = st.columns(4)
+
+            with col_res[0]:
+                st.metric("👥 Grupo 1 (n1)", f"{result['n1']:,}")
+            with col_res[1]:
+                st.metric("👥 Grupo 2 (n2)", f"{result['n2']:,}")
+            with col_res[2]:
+                st.metric("📊 Total (N)", f"{result['total']:,}")
+            with col_res[3]:
+                nnt_calc = 1 / abs(p1 - p2) if p1 != p2 else float('inf')
+                st.metric("📐 NNT", f"{int(nnt_calc):,}" if nnt_calc != float('inf') else "∞")
+
+            # Visualización
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            sample_sizes = list(range(20, result['total'] * 2, 10))
+            powers = []
+            for n in sample_sizes:
+                n1 = n / (1 + ratio)
+                n2 = n * ratio / (1 + ratio)
+                p_bar = (p1 + ratio * p2) / (1 + ratio)
+                se = np.sqrt(p1*(1-p1)/n1 + p2*(1-p2)/n2)
+                z_power = (abs(p1 - p2) / se) - 1.96
+                power_calc = norm.cdf(z_power)
+                powers.append(power_calc * 100)
+
+            ax.plot(sample_sizes, powers, 'b-', linewidth=2)
+            ax.axhline(y=power*100, color='red', linestyle='--', label=f'Poder objetivo: {power*100}%')
+            ax.axvline(x=result['total'], color='green', linestyle='--', label=f'N calculado: {result["total"]}')
+            ax.fill_between(sample_sizes, powers, alpha=0.3)
+            ax.set_xlabel('Tamaño de Muestra Total')
+            ax.set_ylabel('Poder Estadístico (%)')
+            ax.set_title('Curva de Poder vs Tamaño de Muestra')
+            ax.legend()
+            ax.set_ylim(0, 100)
+            ax.grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            st.pyplot(fig)
+
+            # Interpretación
+            st.markdown("---")
+            st.markdown("### 📝 Interpretación")
+
+            effect_size = abs(p1 - p2)
+
+            if result.get('fpc_applied', False):
+                fpc_msg = f"""
+                - ⚠️ **Se aplicó corrección de población finita (FPC)**
+                - Muestra reducida de {result['n_without_fpc']:,} a {result['total']:,}
+                - Porque n/N = {result['n_without_fpc']/population:.2%} > 5%
+                """
+            elif population > 0:
+                fpc_msg = f"- Población total conocida: **{population:,}** (FPC no necesaria cuando n/N < 5%)"
+            else:
+                fpc_msg = "- Población asumida como infinita"
+
+            st.info(f"""
+            **Para detectar una diferencia de {effect_size:.1%} entre las proporciones ({p1:.1%} vs {p2:.1%}):**
+
+            - Se requieren **{result['total']:,} participantes** en total
+            - **{result['n1']:,}** en el Grupo 1 y **{result['n2']:,}** en el Grupo 2
+            - Con un poder del {power*100:.0f}% y α = {alpha*2 if test_type == "Two-sided" else alpha:.3f}
+            {fpc_msg}
+
+            **Nota:** Se recomienda agregar un 10-20% adicional para posibles pérdidas de seguimiento.
+            """)
+
+            # Muestra ajustada
+            st.markdown("#### 🔧 Muestras Ajustadas por Pérdidas")
+            col_adj = st.columns(3)
+            for pct in [0.10, 0.15, 0.20]:
+                adj_total = int(result['total'] * (1 + pct))
+                adj_n1 = int(result['n1'] * (1 + pct))
+                adj_n2 = int(result['n2'] * (1 + pct))
+                with col_adj[int(pct*5)-1]:
+                    st.metric(f"+{pct*100:.0f}% pérdida", f"N = {adj_total:,}")
+                    st.caption(f"n1={adj_n1:,}, n2={adj_n2:,}")
+    
 # ==========================================
 # MÓDULO 6: VIGILANCIA 6.0 (AVANZADO) - SEIR COMPLETO
 # ==========================================
