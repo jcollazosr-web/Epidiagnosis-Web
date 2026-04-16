@@ -1594,7 +1594,7 @@ elif menu == "🔢 Calculadora 2x2":
         st.markdown("---")
         st.markdown("### 📋 Tabla de Contingencia Completa")
 
-        col contingency_table = st.columns(2)
+        col_contingency_table = st.columns(2)
         
         with col_contingency_table[0]:
             # Crear tabla bonita
