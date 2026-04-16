@@ -3741,7 +3741,7 @@ elif menu == "💳 Mi Suscripción":
                     <li>✓ Soporte prioritario</li>
                     <li>✓ Actualizaciones ilimitadas</li>
                 </ul>
-                <h2 style="color: #ffd700; margin-top: 20px;">$299.000 COP / año</h2>
+                <h2 style="color: #ffd700; margin-top: 20px;"> 22 US$ / Mes</h2>
             </div>
         """, unsafe_allow_html=True)
 
@@ -3788,7 +3788,7 @@ elif menu == "💳 Mi Suscripción":
                         transition: all 0.3s;
                         box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
                     ">
-                        💳 PAGAR AHORA - $299.000 COP
+                        💳 PAGAR AHORA - 22 US$
                     </button>
                 </a>
                 <p style="color: #94a3b8; font-size: 13px; margin-top: 15px;">
