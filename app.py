@@ -508,13 +508,12 @@ def login_attempts_check(ip="default"):
     if not rate_limiter.is_allowed(f"login_{ip}"):
         return False, "Demasiados intentos. Espere 60 segundos."
     return True, ""
-
 # ==========================================
 # FLUJO DE AUTENTICACIÓN MEJORADO
 # ==========================================
 if not st.session_state.auth:
     st.title("🩺 EpiDiagnosis Pro v6.0")
-    c1, c2 = st.columns(2)
+    c1, c2 = st.columns(2)  # <-- ¡ESTA LÍNEA ES IMPORTANTE!
 
     with c1:
         with st.container():
@@ -549,47 +548,48 @@ if not st.session_state.auth:
                         else:
                             st.error("Usuario no registrado")
 
-with c2:
-    with st.container():
-        st.markdown("### 📝 Registro prueba gratuita")
-        with st.form("reg"):
-            # NUEVOS CAMPOS
-            rnombre = st.text_input("Nombre", placeholder="Ej: Juan", key="reg_nombre")
-            rapellido = st.text_input("Apellido", placeholder="Ej: Pérez", key="reg_apellido")
-            rid = st.text_input("ID Documento", placeholder="C.C. o Passport")
-            rprofesion = st.selectbox(
-                "Profesión", 
-                ["Médico", "Enfermero", "Investigador", "Estudiante", "Bioestadístico", "Epidemiólogo", "Otro"],
-                key="reg_profesion"
-            )
-            ru = st.text_input("Email", placeholder="su@email.com", key="reg_email").upper().strip()
-            rp = st.text_input("Clave", type="password", placeholder="••••••••", key="reg_pass")
-            
-            col_reg = st.columns(2)
-            with col_reg[0]:
-                submit_reg = st.form_submit_button("ACTIVAR PRUEBA", use_container_width=True)
+    with c2:
+        with st.container():
+            st.markdown("### 📝 Registro Trial")
+            with st.form("reg"):
+                ru = st.text_input("Email", placeholder="su@email.com", key="reg_email").upper().strip()
+                rp = st.text_input("Clave", type="password", placeholder="••••••••", key="reg_pass")
+                rid = st.text_input("ID Documento", placeholder="C.C. o Passport")
+                
+                # NUEVOS CAMPOS
+                rnombre = st.text_input("Nombre", placeholder="Ej: Juan", key="reg_nombre")
+                rapellido = st.text_input("Apellido", placeholder="Ej: Pérez", key="reg_apellido")
+                rprofesion = st.selectbox(
+                    "Profesión", 
+                    ["Médico", "Enfermero/a", "Investigador", "Estudiante", "Bioestadístico", "Epidemiólogo", "Otro"],
+                    key="reg_profesion"
+                )
 
-            if submit_reg:
-                db = load_users()
-                exp = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
-                if ru not in db and ru and rp and rid and rnombre and rapellido:
-                    db[ru] = {
-                        "password": secure_hash(rp),
-                        "role": "user",
-                        "expiry": exp,
-                        "id_doc": rid,
-                        "dob": "2000-01-01",
-                        "name": rnombre,      # NUEVO
-                        "lastname": rapellido,  # NUEVO
-                        "profession": rprofesion  # NUEVO
-                    }
-                    save_users(db)
-                    st.success("✅ Cuenta creada exitosamente. Ya puede iniciar sesión.")
-                elif ru in db:
-                    st.warning("Este email ya está registrado.")
-                else:
-                    st.warning("Complete todos los campos.")
-                    
+                col_reg = st.columns(2)
+                with col_reg[0]:
+                    submit_reg = st.form_submit_button("ACTIVAR PRUEBA", use_container_width=True)
+
+                if submit_reg:
+                    db = load_users()
+                    exp = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+                    if ru not in db and ru and rp and rid and rnombre and rapellido:
+                        db[ru] = {
+                            "password": secure_hash(rp),
+                            "role": "user",
+                            "expiry": exp,
+                            "id_doc": rid,
+                            "dob": "2000-01-01",
+                            "name": rnombre,
+                            "lastname": rapellido,
+                            "profession": rprofesion
+                        }
+                        save_users(db)
+                        st.success("✅ Cuenta creada exitosamente. Ya puede iniciar sesión.")
+                    elif ru in db:
+                        st.warning("Este email ya está registrado.")
+                    else:
+                        st.warning("Complete todos los campos.")
+
         # SECCIÓN DE PAGO
         st.markdown("---")
         st.markdown("### 💳 Acceso Premium")
@@ -650,6 +650,7 @@ with c2:
         """, unsafe_allow_html=True)
 
     st.stop()
+    
 # ==========================================
 # SIDEBAR NAVEGACIÓN MEJORADA v6.0
 # ==========================================
