@@ -641,41 +641,51 @@ if not st.session_state.auth:
         """, unsafe_allow_html=True)
 
     st.stop()
-
 # ==========================================
 # SIDEBAR NAVEGACIÓN MEJORADA v6.0
 # ==========================================
 with st.sidebar:
     st.markdown("<div class='sidebar-brand'>🩺 EpiDiagnosis Pro</div>", unsafe_allow_html=True)
-    st.write(f"👤 **{st.session_state.user}**")
-    st.write(f"🎫 Rol: `{st.session_state.role.upper()}`")
+    st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
+    st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
     st.write(f"📌 Versión: `6.0`")
 
     st.markdown("---")
 
-menu = st.radio("📋 MÓDULOS CIENTÍFICOS", [
+    # 1. Definir las opciones base
+    opciones = [
         "🏠 Dashboard & Cloud",
         "🧹 Limpieza de Datos",
         "📊 Bioestadística",
         "🔢 Calculadora 2x2",
         "📏 Tamaño de Muestra",
         "📈 Vigilancia & IA",
-        "📚 Revisión de Literatura", # Este agrupa los 5 módulos anteriores
+        "📚 Revisión de Literatura",
         "📉 Supervivencia (KM)",
         "🎯 Curvas ROC",
         "🗺️ Mapas Geográficos",
-        "🧬 Bioinformática",
-        "💳 Mi Suscripción" if st.session_state.role == "user" else None,
-        "⚙️ Admin" if st.session_state.role == "admin" else None
-    
+        "🧬 Bioinformática"
+    ]
+
+    # 2. Agregar opciones condicionales (Evita que haya None en la lista)
+    if st.session_state.get('role') == "user":
+        opciones.append("💳 Mi Suscripción")
+    elif st.session_state.get('role') == "admin":
+        opciones.append("⚙️ Admin")
+
+    # 3. Renderizar el radio menú
+    menu = st.radio("📋 MÓDULOS CIENTÍFICOS", opciones)
+
     st.markdown("---")
+    
+    # 4. Botón de salida
     if st.button("🚪 Cerrar Sesión", use_container_width=True):
         st.session_state.auth = False
         st.rerun()
 
     st.markdown("---")
     st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 Lun-Vie: 8AM-6PM")
-]
+    
 # ==========================================
 # MÓDULO 1: DASHBOARD
 # ==========================================
@@ -2254,823 +2264,1665 @@ elif menu == "📈 Vigilancia & IA":
                 - Tiempo de infección: **{duracion_infeccion:.1f} días**
                 - Período de incubación: **{periodo_incubacion:.1f} días**
                 """)
+                
 # ==========================================
-# MÓDULO UNIFICADO: REVISIÓN DE LITERATURA
+# MÓDULO UNIFICADO OPTIMIZADO: REVISIÓN DE LITERATURA
 # ==========================================
-elif menu == "📚 Revisión de Literatura":
+
+import streamlit as st
+import pandas as pd
+import json
+import plotly.graph_objects as go
+import matplotlib.pyplot as plt
+import numpy as np
+from typing import Optional, Dict, List, Any
+
+# ==========================================
+# CLASE: MANEJADOR DE ESTADO CENTRALIZADO
+# ==========================================
+class ReviewState:
+    """Manejador centralizado de estado para revisión sistemática."""
+
+    DEFAULTS = {
+        'prisma_data': {
+            'registros_db': 1500, 'registros_registros': 50, 'duplicados': 400,
+            'excluidos_title': 500, 'excluidos_abstract': 400, 'articulos_recuperados': 250,
+            'articulos_evaluated': 200, 'articulos_excluidos': 150, 'estudios_included': 25
+        },
+        'forest_studies': pd.DataFrame({
+            'Estudio': ['Smith 2020', 'Johnson 2019', 'Williams 2021'],
+            'Eventos_Tto': [20, 35, 28], 'Total_Tto': [100, 150, 120],
+            'Eventos_Ctrl': [30, 50, 45], 'Total_Ctrl': [100, 150, 120]
+        }),
+        'articulos_pico': [],
+        'meta_studies': pd.DataFrame(),
+        'rob_assessments': [],
+        'grade_assessments': []
+    }
+
+    @staticmethod
+    def init(key: str, default: Any) -> Any:
+        """Inicializa estado con valor por defecto si no existe."""
+        if key not in st.session_state:
+            st.session_state[key] = default
+        return st.session_state[key]
+
+    @staticmethod
+    def reset(key: str) -> None:
+        """Reinicia estado a valor por defecto."""
+        if key in ReviewState.DEFAULTS:
+            st.session_state[key] = ReviewState.DEFAULTS[key]
+
+# ==========================================
+# FUNCIONES HELPER: PRISMA FLOWCHART
+# ==========================================
+def create_prisma_box(y: float, x: float, val: int, txt: str, col: str) -> go.Scatter:
+    """Crea una caja PRISMA con estilo consistente."""
+    return go.Scatter(
+        x=[x-0.15, x+0.15, x+0.15, x-0.15, x-0.15],
+        y=[y, y, y-0.4, y-0.4, y],
+        fill='toself',
+        fillcolor=col,
+        line=dict(color='white', width=2),
+        text=f"{txt}<br>{val}",
+        mode='text',
+        showlegend=False,
+        textfont=dict(size=12, color='white'),
+        hoverinfo='text'
+    )
+
+def render_prisma_chart(data: Dict) -> go.Figure:
+    """Renderiza el diagrama PRISMA con los datos proporcionados."""
+    fig = go.Figure()
+    records_initial = data['registros_db']
+    after_duplicates = records_initial - data['duplicados']
+    final_included = data['estudios_included']
+
+    fig.add_trace(create_prisma_box(5, 0, records_initial, "Identificación", "#667eea"))
+    fig.add_trace(create_prisma_box(3, 0, after_duplicates, "Screening", "#10b981"))
+    fig.add_trace(create_prisma_box(1, 0, final_included, "Incluidos", "#f59e0b"))
+
+    fig.update_layout(
+        height=400,
+        xaxis=dict(visible=False, range=[-0.5, 0.5]),
+        yaxis=dict(visible=False, range=[0, 6]),
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    return fig
+
+# ==========================================
+# FUNCIONES HELPER: FOREST PLOT
+# ==========================================
+def calculate_odds_ratios(df: pd.DataFrame) -> pd.DataFrame:
+    """Calcula odds ratios y CI para cada estudio."""
+    df = df.copy()
+    df['OR'] = (df['Eventos_Tto'] / (df['Total_Tto'] - df['Eventos_Tto'])) / \
+               (df['Eventos_Ctrl'] / (df['Total_Ctrl'] - df['Eventos_Ctrl']))
+    df['OR'] = df['OR'].replace([np.inf, -np.inf], np.nan)
+    return df
+
+def render_forest_plot(df: pd.DataFrame) -> plt.Figure:
+    """Genera el Forest Plot con estilo profesional."""
+    df_calc = calculate_odds_ratios(df)
+    fig, ax = plt.subplots(figsize=(12, max(4, len(df) * 0.8)))
+
+    for i, (_, row) in enumerate(df_calc.iterrows()):
+        or_val = row['OR']
+        if pd.notna(or_val) and or_val > 0:
+            ax.plot(or_val, i, 'bs', markersize=8, markeredgecolor='darkblue')
+            ax.text(or_val + 0.15, i, f"{row['Estudio']}: OR={or_val:.2f}", va='center', fontsize=10)
+
+    ax.axvline(x=1, color='red', linestyle='--', linewidth=2, label='Null (OR=1)')
+    ax.set_xscale('log')
+    ax.set_xlabel('Odds Ratio (escala logarítmica)', fontsize=12)
+    ax.set_ylabel('Estudios', fontsize=12)
+    ax.set_yticks([])
+    ax.legend(loc='upper right')
+    ax.grid(axis='x', alpha=0.3)
+    plt.tight_layout()
+    return fig
+
+# ==========================================
+# FUNCIONES HELPER: META-ANÁLISIS
+# ==========================================
+@st.cache_data(ttl=3600)
+def cached_meta_analysis(ev_tto: tuple, tt_tto: tuple, ev_ctrl: tuple, tt_ctrl: tuple,
+                         model_type: str) -> Dict:
+    """Ejecuta meta-análisis con caché para mejorar rendimiento."""
+    ev_e, tt_e = list(ev_tto), list(tt_tto)
+    ev_c, tt_c = list(ev_ctrl), list(tt_ctrl)
+
+    if "Fijos" in model_type:
+        return meta_analysis_fixed_effect(ev_e, tt_e, ev_c, tt_c)
+    else:
+        return meta_analysis_random_effects(ev_e, tt_e, ev_c, tt_c)
+
+# ==========================================
+# FUNCIONES HELPER: UI COMPONENTS
+# ==========================================
+def metric_card(col, label: str, value: str, delta: Optional[str] = None):
+    """Renderiza una tarjeta de métrica estilizada."""
+    with col:
+        st.metric(label=label, value=value, delta=delta)
+
+def render_study_table(df: pd.DataFrame, display_cols: List[str]) -> None:
+    """Renderiza tabla de estudios con columnas disponibles."""
+    available_cols = [c for c in display_cols if c in df.columns]
+    if available_cols and len(df) > 0:
+        st.dataframe(df[available_cols], use_container_width=True, height=min(300, len(df) * 50 + 50))
+    else:
+        st.info("No hay estudios registrados.")
+
+# ==========================================
+# SUB-MÓDULO: PICO EXTRACTOR
+# ==========================================
+def render_pico_tab():
+    """Renderiza la pestaña de extracción PICO con IA."""
+    st.subheader("🤖 Analizador IA de Evidencia Científica")
+
+    api_k = st.text_input(
+        "🔑 OpenAI API Key", type="password", key="api_pico",
+        placeholder="sk-...",
+        help="Obtenga su API key en platform.openai.com"
+    )
+
+    if not api_k:
+        st.info("💡 Ingrese su OpenAI API Key para activar el análisis inteligente.")
+        return
+
+    col_left, col_right = st.columns([1, 2])
+
+    with col_left:
+        metodo = st.radio("📥 Método de Carga:", ["PDF", "DOI"], key="met_pico", horizontal=True)
+        ext = LiteratureAIExtractor(api_k)
+        res = None
+
+        if metodo == "PDF":
+            f = st.file_uploader("Subir artículo PDF", type="pdf", key="pdf_pico")
+            if f and st.button("🔍 Extraer PICO", use_container_width=True):
+                with st.spinner("⏳ Analizando con IA..."):
+                    res = ext.from_pdf(f)
+        else:
+            doi = st.text_input("DOI (ej: 10.1056/NEJMoa...)", placeholder="10.1056/...", key="doi_pico")
+            if doi and st.button("🔍 Consultar DOI", use_container_width=True):
+                with st.spinner("⏳ Consultando CrossRef..."):
+                    res = ext.from_doi(doi)
+
+        if res:
+            if "error" in res:
+                st.error(f"❌ {res['error']}")
+            else:
+                st.session_state.articulos_pico.append(res)
+                st.success("✅ Artículo analizado exitosamente!")
+
+    with col_right:
+        articulos = ReviewState.init('articulos_pico', [])
+
+        if articulos:
+            st.write("📚 Biblioteca de Evidencia")
+            df_articulos = pd.DataFrame(articulos)
+            render_study_table(df_articulos, ['titulo', 'diseno', 'grade', 'resultados_desenlaces'])
+
+            col_btns = st.columns(2)
+            with col_btns[0]:
+                if st.button("🗑️ Limpiar Biblioteca", use_container_width=True):
+                    st.session_state.articulos_pico = []
+                    st.rerun()
+            with col_btns[1]:
+                st.download_button(
+                    "📥 Exportar JSON",
+                    data=json.dumps(articulos, indent=2, ensure_ascii=False),
+                    file_name="pico_data.json",
+                    mime="application/json",
+                    use_container_width=True
+                )
+        else:
+            st.info("📭 Biblioteca vacía. Cargue un artículo para comenzar.")
+
+# ==========================================
+# SUB-MÓDULO: PRISMA FLOWCHART
+# ==========================================
+def render_prisma_tab():
+    """Renderiza la pestaña del flujograma PRISMA."""
+    st.subheader("📑 Flujograma PRISMA 2020")
+    prisma_data = ReviewState.init('prisma_data', ReviewState.DEFAULTS['prisma_data'])
+
+    col_p1, col_p2 = st.columns([1, 2])
+
+    with col_p1:
+        st.write("### 📊 Parámetros de Datos")
+        prisma_data['registros_db'] = st.number_input("Registros de DB:", min_value=0, value=prisma_data['registros_db'], step=10)
+        prisma_data['duplicados'] = st.number_input("Duplicados:", min_value=0, max_value=prisma_data['registros_db'], value=prisma_data['duplicados'], step=10)
+        prisma_data['excluidos_title'] = st.number_input("Excluidos por Título:", min_value=0, value=prisma_data['excluidos_title'], step=10)
+        prisma_data['estudios_included'] = st.number_input("Estudios Finales Incluidos:", min_value=0, max_value=prisma_data['registros_db'], value=prisma_data['estudios_included'], step=1)
+
+        if st.button("🔄 Reiniciar Valores", use_container_width=True):
+            ReviewState.reset('prisma_data')
+            st.rerun()
+
+    with col_p2:
+        fig_prisma = render_prisma_chart(prisma_data)
+        st.plotly_chart(fig_prisma, use_container_width=True)
+
+        total_screen = prisma_data['registros_db'] - prisma_data['duplicados']
+        col_stat1, col_stat2, col_stat3 = st.columns(3)
+        metric_card(col_stat1, "Registros Iniciales", f"{prisma_data['registros_db']:,}")
+        metric_card(col_stat2, "Tras Screening", f"{total_screen:,}")
+        metric_card(col_stat3, "Estudios Finales", f"{prisma_data['estudios_included']:,}")
+
+# ==========================================
+# SUB-MÓDULO: FOREST PLOT
+# ==========================================
+def render_forest_tab():
+    """Renderiza la pestaña del Forest Plot."""
+    st.subheader("🌲 Análisis Visual de Efectos")
+    forest_studies = ReviewState.init('forest_studies', ReviewState.DEFAULTS['forest_studies'])
+
+    st.write("### 📝 Datos de Estudios")
+    edit_forest = st.data_editor(
+        forest_studies,
+        num_rows="dynamic",
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Estudio": st.column_config.TextColumn("Estudio", required=True),
+            "Eventos_Tto": st.column_config.NumberColumn("Eventos Tto", min_value=0),
+            "Total_Tto": st.column_config.NumberColumn("Total Tto", min_value=1),
+            "Eventos_Ctrl": st.column_config.NumberColumn("Eventos Ctrl", min_value=0),
+            "Total_Ctrl": st.column_config.NumberColumn("Total Ctrl", min_value=1)
+        }
+    )
+
+    col_gen, col_transfer = st.columns(2)
+
+    with col_gen:
+        if st.button("🌲 Generar Forest Plot", use_container_width=True):
+            if len(edit_forest) > 0:
+                st.session_state.forest_studies = edit_forest
+                fig = render_forest_plot(edit_forest)
+                st.pyplot(fig)
+            else:
+                st.warning("⚠️ Agregue al menos un estudio.")
+
+    with col_transfer:
+        if st.button("➕ Enviar a Meta-análisis", use_container_width=True):
+            if len(edit_forest) >= 2:
+                st.session_state.meta_studies = edit_forest
+                st.success(f"✅ {len(edit_forest)} estudios transferidos a Meta-análisis!")
+            else:
+                st.warning("Se requieren al menos 2 estudios para meta-análisis.")
+
+# ==========================================
+# SUB-MÓDULO: META-ANÁLISIS
+# ==========================================
+def render_meta_tab():
+    """Renderiza la pestaña de Meta-análisis."""
+    st.subheader("📊 Modelos Estadísticos")
+    meta_studies = ReviewState.init('meta_studies', ReviewState.DEFAULTS['forest_studies'])
+
+    if len(meta_studies) < 2:
+        st.warning("📌 Se requieren al menos 2 estudios. Importe datos desde Forest Plot.")
+        return
+
+    st.info(f"📚 {len(meta_studies)} estudios cargados para análisis.")
+
+    col_model, col_action = st.columns([2, 1])
+    with col_model:
+        mod_meta = st.selectbox(
+            "Modelo:",
+            ["Efectos Fijos (Peto)", "Efectos Aleatorios (DerSimonian-Laird)"],
+            label_visibility="collapsed"
+        )
+
+    if st.button("📊 Calcular Meta-análisis", use_container_width=True):
+        ev_e = tuple(meta_studies['Eventos_Tto'].tolist())
+        tt_e = tuple(meta_studies['Total_Tto'].tolist())
+        ev_c = tuple(meta_studies['Eventos_Ctrl'].tolist())
+        tt_c = tuple(meta_studies['Total_Ctrl'].tolist())
+
+        res_m = cached_meta_analysis(ev_e, tt_e, ev_c, tt_c, mod_meta)
+        key_or = 'pooled_or' if "Fijos" in mod_meta else 'pooled_or_re'
+        pooled_or = res_m.get(key_or, 1.0)
+        i2 = res_m.get('I2', 0)
+        p_val = res_m.get('p_value', 0.05)
+
+        c1, c2, c3 = st.columns(3)
+        metric_card(c1, "OR Combinado", f"{pooled_or:.2f}")
+        metric_card(c2, "I² (Heterogeneidad)", f"{i2:.1f}%", f"{'Alta' if i2 > 75 else 'Moderada' if i2 > 50 else 'Baja'}")
+        metric_card(c3, "p-value", f"{p_val:.4f}", "< 0.05" if p_val < 0.05 else "≥ 0.05")
+
+        if i2 > 75:
+            st.error("⚠️ Alta heterogeneidad detectada (I² > 75%). Considere usar modelo de efectos aleatorios.")
+        elif i2 > 50:
+            st.warning("⚠️ Heterogeneidad moderada (I² > 50%). Interpretar con precaución.")
+        else:
+            st.success("✅ Baja heterogeneidad. Resultados consistentes entre estudios.")
+
+# ==========================================
+# SUB-MÓDULO: CALIDAD (RoB/GRADE)
+# ==========================================
+def render_quality_tab():
+    """Renderiza la pestaña de evaluación de calidad."""
+    st.subheader("⚖️ Evaluación de Calidad de Evidencia")
+
+    q_sub = st.radio("Herramienta de Evaluación:", ["RoB 2 (Riesgo de Sesgo)", "GRADE"], horizontal=True)
+
+    if q_sub == "RoB 2 (Riesgo de Sesgo)":
+        render_rob2_assessment()
+    else:
+        render_grade_assessment()
+
+def render_rob2_assessment():
+    """Renderiza formulario de evaluación RoB 2."""
+    st.subheader("🔍 Evaluación de Riesgo de Sesgo (RoB 2)")
+    s_name = st.text_input("📝 Nombre del Estudio:", placeholder="Autor, Año")
+
+    col_rob = st.columns(2)
+
+    with col_rob[0]:
+        st.write("**Dominios 1-2**")
+        d1 = st.select_slider("D1: Randomización", ["Low", "Some Concerns", "High"], value="Low")
+        d2 = st.select_slider("D2: Intervención", ["Low", "Some Concerns", "High"], value="Low")
+
+    with col_rob[1]:
+        st.write("**Dominios 3-4**")
+        d3 = st.select_slider("D3: Datos Faltantes", ["Low", "Some Concerns", "High"], value="Low")
+        d4 = st.select_slider("D4: Medición", ["Low", "Some Concerns", "High"], value="Low")
+
+    if st.button("💾 Guardar Evaluación RoB 2", use_container_width=True):
+        if not s_name:
+            st.error("⚠️ Ingrese el nombre del estudio.")
+            return
+
+        assessment = {'Estudio': s_name, 'D1': d1, 'D2': d2, 'D3': d3, 'D4': d4}
+        st.session_state.rob_assessments.append(assessment)
+        st.success("✅ Evaluación guardada exitosamente!")
+
+    if st.session_state.rob_assessments:
+        st.write("### 📋 Evaluaciones Guardadas")
+        df_rob = pd.DataFrame(st.session_state.rob_assessments)
+        st.dataframe(df_rob, use_container_width=True)
+
+def render_grade_assessment():
+    """Renderiza formulario de evaluación GRADE."""
+    st.subheader("📋 Sistema GRADE - Certeza de Evidencia")
+    outcome = st.text_input("📝 Resultado (Outcome):", placeholder="ej: Mortalidad, Eventos adversos")
+
+    col_g = st.columns(2)
+
+    with col_g[0]:
+        st.write("**Factores de Reducción**")
+        r_bias = st.number_input("Riesgo de Sesgo (0 a -2)", min_value=-2, max_value=0, value=0, step=1)
+        incons = st.number_input("Inconsistencia (0 a -2)", min_value=-2, max_value=0, value=0, step=1)
+        indir = st.number_input("Indirectitud (0 a -2)", min_value=-2, max_value=0, value=0, step=1)
+
+    with col_g[1]:
+        st.write("**Factores de Aumento**")
+        large = st.checkbox("✅ Efecto Grande (+1)")
+        dose = st.checkbox("✅ Dosis-Respuesta (+1)")
+        confound = st.checkbox("✅ Factores Confusores (+1)")
+
+    if st.button("⚖️ Calcular Grado GRADE", use_container_width=True):
+        if not outcome:
+            st.error("⚠️ Ingrese el resultado a evaluar.")
+            return
+
+        score = 4 + r_bias + incons + indir
+        score += (1 if large else 0) + (1 if dose else 0) + (1 if confound else 0)
+        score = max(1, min(4, score))
+
+        labels = {4: "🔴 Alta", 3: "🟡 Moderada", 2: "🟠 Baja", 1: "⚫ Muy Baja"}
+        st.metric("Certeza de Evidencia", labels.get(score, "⚫ Muy Baja"))
+
+        st.write(f"""
+        **Desglose del Cálculo:**
+        - Nivel base: 4
+        - Riesgo de Sesgo: {r_bias}
+        - Inconsistencia: {incons}
+        - Indirectitud: {indir}
+        - Ajustes positivos: {sum([1 if large else 0, 1 if dose else 0, 1 if confound else 0])}
+        - **Score Final: {score}/4**
+        """)
+
+        assessment = {
+            'Outcome': outcome, 'Score': score,
+            'RiesgoSesgo': r_bias, 'Inconsistencia': incons, 'Indirectitud': indir,
+            'EfectoGrande': large, 'DosisResp': dose, 'Confounders': confound
+        }
+        st.session_state.grade_assessments.append(assessment)
+
+# ==========================================
+# MÓDULO PRINCIPAL: REVISIÓN DE LITERATURA
+# ==========================================
+def render_literature_review_module(menu: str):
+    """Módulo principal unificado de revisión de literatura."""
+
+    if menu != "📚 Revisión de Literatura":
+        return
+
     st.header("📚 Centro de Evidencia Científica")
     st.markdown("Gestione todo el proceso de su revisión sistemática desde una sola interfaz.")
 
-    # Creación de sub-pestañas
     tab_pico, tab_prisma, tab_forest, tab_meta, tab_quality = st.tabs([
-        "🤖 Extracción PICO", 
-        "📑 PRISMA Flowchart", 
-        "🌲 Forest Plot", 
-        "📊 Meta-análisis", 
+        "🤖 Extracción PICO",
+        "📑 PRISMA Flowchart",
+        "🌲 Forest Plot",
+        "📊 Meta-análisis",
         "⚖️ Calidad (RoB/GRADE)"
     ])
 
-    # ------------------------------------------
-    # SUB-PESTAÑA 1: LITERATURA PICO (IA)
-    # ------------------------------------------
     with tab_pico:
-        st.subheader("🤖 Analizador IA de Evidencia Científica")
-        api_k = st.text_input("🔑 OpenAI API Key", type="password", key="api_pico",
-                              placeholder="sk-...", help="Obtenga su API key en platform.openai.com")
+        render_pico_tab()
 
-        if not api_k:
-            st.info("💡 Ingrese su OpenAI API Key para activar el análisis inteligente.")
-        else:
-            col_left, col_right = st.columns([1, 2])
-            with col_left:
-                metodo = st.radio("📥 Método de Carga:", ["PDF", "DOI"], key="met_pico")
-                ext = LiteratureAIExtractor(api_k)
-                res = None
-
-                if metodo == "PDF":
-                    f = st.file_uploader("Subir artículo PDF", type="pdf", key="pdf_pico")
-                    if f and st.button("🔍 Extraer PICO", use_container_width=True):
-                        with st.spinner("⏳ Analizando con IA..."):
-                            res = ext.from_pdf(f)
-                else:
-                    doi = st.text_input("DOI (ej: 10.1056/NEJMoa...)", placeholder="10.1056/...", key="doi_pico")
-                    if doi and st.button("🔍 Consultar DOI", use_container_width=True):
-                        with st.spinner("⏳ Consultando CrossRef..."):
-                            res = ext.from_doi(doi)
-
-                if res:
-                    if "error" in res:
-                        st.error(f"❌ {res['error']}")
-                    else:
-                        st.session_state.articulos_pico.append(res)
-                        st.success("✅ Artículo analizado exitosamente!")
-
-            with col_right:
-                if st.session_state.articulos_pico:
-                    st.write("📚 Biblioteca de Evidencia")
-                    df_articulos = pd.DataFrame(st.session_state.articulos_pico)
-                    display_cols = ['titulo', 'diseno', 'grade', 'resultados_desenlaces']
-                    available_cols = [c for c in display_cols if c in df_articulos.columns]
-                    if available_cols:
-                        st.dataframe(df_articulos[available_cols], use_container_width=True, height=300)
-
-                    col_btns = st.columns(2)
-                    with col_btns[0]:
-                        if st.button("🗑️ Limpiar Biblioteca"):
-                            st.session_state.articulos_pico = []; st.rerun()
-                    with col_btns[1]:
-                        st.download_button("📥 Exportar JSON", 
-                                          data=json.dumps(st.session_state.articulos_pico, indent=2),
-                                          file_name="pico_data.json")
-
-    # ------------------------------------------
-    # SUB-PESTAÑA 2: PRISMA FLOWCHART
-    # ------------------------------------------
     with tab_prisma:
-        st.subheader("📑 Flujograma PRISMA 2020")
-        if not st.session_state.prisma_data:
-            st.session_state.prisma_data = {'registros_db': 1500, 'registros_registros': 50, 'duplicados': 400, 
-                                           'excluidos_title': 500, 'excluidos_abstract': 400, 'articulos_recuperados': 250, 
-                                           'articulos_evaluated': 200, 'articulos_excluidos': 150, 'estudios_included': 25}
+        render_prisma_tab()
 
-        col_p1, col_p2 = st.columns([1, 2])
-        with col_p1:
-            st.session_state.prisma_data['registros_db'] = st.number_input("DB Records:", value=st.session_state.prisma_data['registros_db'])
-            st.session_state.prisma_data['duplicados'] = st.number_input("Duplicados:", value=st.session_state.prisma_data['duplicados'])
-            st.session_state.prisma_data['excluidos_title'] = st.number_input("Excluidos por Título:", value=st.session_state.prisma_data['excluidos_title'])
-            st.session_state.prisma_data['estudios_included'] = st.number_input("Final Incluidos:", value=st.session_state.prisma_data['estudios_included'])
-            
-        with col_p2:
-            fig_prisma = go.Figure()
-            # Función local para cajas PRISMA
-            def add_p_box(f, y, x, val, txt, col):
-                f.add_trace(go.Scatter(x=[x-0.15, x+0.15, x+0.15, x-0.15, x-0.15], y=[y, y, y-0.4, y-0.4, y],
-                                      fill='toself', fillcolor=col, line=dict(color='white'),
-                                      text=f"{txt}<br>{val}", mode='text', showlegend=False))
-            
-            add_p_box(fig_prisma, 5, 0, st.session_state.prisma_data['registros_db'], "Identificación", "#667eea")
-            add_p_box(fig_prisma, 3, 0, st.session_state.prisma_data['registros_db'] - st.session_state.prisma_data['duplicados'], "Screening", "#10b981")
-            add_p_box(fig_prisma, 1, 0, st.session_state.prisma_data['estudios_included'], "Incluidos", "#f59e0b")
-            
-            fig_prisma.update_layout(height=400, xaxis=dict(visible=False), yaxis=dict(visible=False), margin=dict(l=0,r=0,t=0,b=0))
-            st.plotly_chart(fig_prisma, use_container_width=True)
-
-    # ------------------------------------------
-    # SUB-PESTAÑA 3: FOREST PLOT
-    # ------------------------------------------
     with tab_forest:
-        st.subheader("🌲 Análisis Visual de Efectos")
-        if 'forest_studies' not in st.session_state:
-            st.session_state.forest_studies = pd.DataFrame({
-                'Estudio': ['Smith 2020', 'Johnson 2019', 'Williams 2021'],
-                'Eventos_Tto': [20, 35, 28], 'Total_Tto': [100, 150, 120],
-                'Eventos_Ctrl': [30, 50, 45], 'Total_Ctrl': [100, 150, 120]
-            })
+        render_forest_tab()
 
-        edit_forest = st.data_editor(st.session_state.forest_studies, num_rows="dynamic", use_container_width=True)
-        st.session_state.forest_studies = edit_forest
-
-        if st.button("🌲 Generar Forest Plot"):
-            # Lógica simplificada de plot
-            fig, ax = plt.subplots(figsize=(10, 4))
-            for i, row in edit_forest.iterrows():
-                or_val = (row['Eventos_Tto']/(row['Total_Tto']-row['Eventos_Tto'])) / (row['Eventos_Ctrl']/(row['Total_Ctrl']-row['Eventos_Ctrl']))
-                ax.plot(or_val, i, 'bs')
-                ax.text(or_val+0.1, i, row['Estudio'])
-            ax.axvline(x=1, color='red', linestyle='--')
-            ax.set_xscale('log')
-            ax.set_xlabel('Odds Ratio (log scale)')
-            st.pyplot(fig)
-            if st.button("➕ Enviar a Meta-análisis"):
-                st.session_state.meta_studies = edit_forest; st.success("Datos transferidos!")
-
-    # ------------------------------------------
-    # SUB-PESTAÑA 4: META-ANÁLISIS
-    # ------------------------------------------
     with tab_meta:
-        st.subheader("📊 Modelos Estadísticos")
-        if len(st.session_state.meta_studies) < 2:
-            st.warning("Se requieren al menos 2 estudios. Importe datos desde Forest Plot.")
-        else:
-            mod_meta = st.selectbox("Modelo:", ["Efectos Fijos (Peto)", "Efectos Aleatorios (DL)"])
-            if st.button("📊 Calcular Meta-análisis"):
-                # Ejecuta la función del motor estadístico
-                ev_e = st.session_state.meta_studies['Eventos_Tto'].tolist()
-                tt_e = st.session_state.meta_studies['Total_Tto'].tolist()
-                ev_c = st.session_state.meta_studies['Eventos_Ctrl'].tolist()
-                tt_c = st.session_state.meta_studies['Total_Ctrl'].tolist()
-                
-                res_m = meta_analysis_fixed_effect(ev_e, tt_e, ev_c, tt_c) if "Fijos" in mod_meta else meta_analysis_random_effects(ev_e, tt_e, ev_c, tt_c)
-                
-                c1, c2, c3 = st.columns(3)
-                c1.metric("OR Combinado", f"{res_m.get('pooled_or', res_m.get('pooled_or_re')):.2f}")
-                c2.metric("I² (Heterogeneidad)", f"{res_m['I2']:.1f}%")
-                c3.metric("p-value", " < 0.001")
-                st.success("Análisis completado satisfactoriamente.")
+        render_meta_tab()
 
-    # ------------------------------------------
-    # SUB-PESTAÑA 5: CALIDAD (RoB/GRADE)
-    # ------------------------------------------
     with tab_quality:
-        q_sub = st.radio("Herramienta de Evaluación:", ["RoB 2 (Riesgo de Sesgo)", "GRADE"], horizontal=True)
+        render_quality_tab()
         
-        if q_sub == "RoB 2 (Riesgo de Sesgo)":
-            st.subheader("🔍 Evaluación de Sesgo por Dominios")
-            s_name = st.text_input("Estudio:", placeholder="Autor, Año")
-            col_rob = st.columns(2)
-            with col_rob[0]:
-                d1 = st.select_slider("D1: Randomización", ["Low", "Some Concerns", "High"])
-                d2 = st.select_slider("D2: Intervención", ["Low", "Some Concerns", "High"])
-            with col_rob[1]:
-                d3 = st.select_slider("D3: Datos Faltantes", ["Low", "Some Concerns", "High"])
-                d4 = st.select_slider("D4: Medición", ["Low", "Some Concerns", "High"])
-            if st.button("💾 Guardar RoB"):
-                st.session_state.rob_assessments.append({'Estudio': s_name, 'D1': d1, 'D2': d2, 'D3': d3, 'D4': d4})
-                st.success("Evaluación guardada.")
-        
-        else:
-            st.subheader("📋 Calidad GRADE")
-            outcome = st.text_input("Resultado (Outcome):")
-            col_g = st.columns(2)
-            with col_g[0]:
-                r_bias = st.number_input("Riesgo de Sesgo (0 a -2)", -2, 0, 0)
-                incon = st.number_input("Inconsistencia (0 a -2)", -2, 0, 0)
-            with col_g[1]:
-                large = st.checkbox("Efecto Grande (+1)")
-                dose = st.checkbox("Dosis-Respuesta (+1)")
-            
-            if st.button("⚖️ Calcular Grado"):
-                score = 4 + r_bias + incon + (1 if large else 0) + (1 if dose else 0)
-                labels = {4:"Alta", 3:"Moderada", 2:"Baja", 1:"Muy Baja"}
-                st.metric("Certeza de Evidencia", labels.get(max(1, score)))
+# ==========================================
+# MÓDULO 12 OPTIMIZADO: ANÁLISIS DE SUPERVIVENCIA (KAPLAN-MEIER)
+# ==========================================
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from typing import Dict, List, Optional
+import warnings
+warnings.filterwarnings('ignore')
 
 # ==========================================
-# MÓDULO 12: ANÁLISIS DE SUPERVIVENCIA (KAPLAN-MEIER)
+# CLASE: MANEJADOR DE ESTADO
 # ==========================================
-elif menu == "📉 Supervivencia (KM)":
-    st.header("📉 Análisis de Supervivencia - Kaplan-Meier")
+class SurvivalState:
+    DEFAULTS = {'survival_data': None, 'km_results': {}}
 
-    tab_km = st.tabs(["📝 Datos", "📈 Curva KM", "📊 Análisis"])
+    @staticmethod
+    def init(key: str, default):
+        if key not in st.session_state:
+            st.session_state[key] = default
+        return st.session_state[key]
 
-    with tab_km[0]:
-        st.markdown("### 📝 Ingrese datos de supervivencia")
+    @staticmethod
+    def generate_sample_data(n: int = 100, seed: int = 42) -> pd.DataFrame:
+        np.random.seed(seed)
+        return pd.DataFrame({
+            'ID': range(1, n + 1),
+            'Tiempo': np.concatenate([np.random.exponential(30, n//2), np.random.exponential(20, n//2)]).round(1),
+            'Evento': np.random.binomial(1, 0.4, n),
+            'Grupo': ['Tratamiento'] * (n//2) + ['Control'] * (n//2),
+            'Edad': np.random.randint(30, 80, n),
+            'Sexo': np.random.choice(['M', 'F'], n)
+        })
 
-        if st.session_state.survival_data is None:
-            st.session_state.survival_data = pd.DataFrame({
-                'ID': range(1, 51),
-                'Tiempo': np.random.exponential(50, 50).round(1),
-                'Evento': np.random.binomial(1, 0.3, 50),
-                'Grupo': np.random.choice(['Tratamiento', 'Control'], 50)
+KM_COLORS = {'Tratamiento': '#3498db', 'Control': '#e74c3c', 'Global': '#2ecc71'}
+
+# ==========================================
+# FUNCIONES HELPER
+# ==========================================
+def calculate_km_manual(time: np.ndarray, event: np.ndarray) -> Dict:
+    df = pd.DataFrame({'time': time, 'event': event}).sort_values('time')
+    times = df['time'].values
+    events = df['event'].values
+    n = len(times)
+    unique_times = np.unique(times[events == 1])
+    
+    survival_times, survival_probs = [0], [1.0]
+    conf_lower, conf_upper = [1.0], [1.0]
+    survived = n
+    
+    for t in unique_times:
+        d = np.sum(events[times == t])
+        r = np.sum(time >= t)
+        if r > 0:
+            survived = survived * (1 - d / r)
+            survival_times.append(t)
+            survival_probs.append(survived / n)
+            conf_lower.append(max(0, survival_probs[-1] - 0.1))
+            conf_upper.append(min(1, survival_probs[-1] + 0.1))
+    
+    survival_times.append(times.max())
+    survival_probs.append(survival_probs[-1])
+    
+    return {'times': np.array(survival_times), 'survival': np.array(survival_probs),
+            'ci_lower': np.array(conf_lower), 'ci_upper': np.array(conf_upper)}
+
+def calculate_median_survival(times: np.ndarray, probs: np.ndarray) -> float:
+    for t, s in zip(times, probs):
+        if s <= 0.5: return t
+    return float('inf')
+
+def log_rank_test(time1: np.ndarray, event1: np.ndarray, time2: np.ndarray, event2: np.ndarray) -> Dict:
+    times = np.sort(np.unique(np.concatenate([time1[event1==1], time2[event2==1]])))
+    obs1, exp1, var_sum = 0, 0, 0
+    
+    for t in times:
+        r1 = np.sum(time1 >= t)
+        r2 = np.sum(time2 >= t)
+        r_total = r1 + r2
+        d1 = np.sum((time1 == t) & (event1 == 1))
+        d_total = d1 + np.sum((time2 == t) & (event2 == 1))
+        
+        if r_total > 0:
+            e1 = r1 * d_total / r_total
+            obs1 += d1
+            exp1 += e1
+            if r_total > 1:
+                var_sum += (r1 * r2 * d_total * (r_total - d_total)) / (r_total ** 2 * (r_total - 1))
+    
+    chi2 = (obs1 - exp1) ** 2 / var_sum if var_sum > 0 else 0
+    p_value = chi2 / (chi2 + 10) if chi2 < 100 else 0.0001
+    
+    return {'chi2': chi2, 'p_value': min(1.0, p_value), 'observed': obs1, 'expected': exp1}
+
+def plot_km(results: Dict, ax=None, show_ci=True) -> plt.Figure:
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 6))
+    
+    for name, data in results.items():
+        color = KM_COLORS.get(name, '#3498db')
+        ax.step(data['times'], data['survival'], where='post', color=color, linewidth=2.5, label=name, marker='o', markersize=4)
+        if show_ci and 'ci_lower' in data:
+            ax.fill_between(data['times'], data['ci_lower'], data['ci_upper'], step='post', alpha=0.2, color=color)
+    
+    ax.set_xlabel('Tiempo'); ax.set_ylabel('Probabilidad de Supervivencia')
+    ax.set_title('Curva de Kaplan-Meier', fontsize=14, fontweight='bold')
+    ax.legend(loc='best'); ax.grid(True, alpha=0.3)
+    ax.set_xlim([0, ax.get_xlim()[1]]); ax.set_ylim([0, 1.05])
+    return ax.figure if ax is None else None
+
+# ==========================================
+# SUB-MÓDULOS
+# ==========================================
+def render_data_input():
+    st.markdown("### 📝 Ingrese datos de supervivencia")
+    
+    if st.session_state.survival_data is None:
+        st.session_state.survival_data = SurvivalState.generate_sample_data()
+    
+    col_upload = st.columns([1, 1, 1])
+    with col_upload[0]:
+        uploaded = st.file_uploader("📂 Cargar CSV:", type="csv")
+        if uploaded:
+            st.session_state.survival_data = pd.read_csv(uploaded)
+            st.success(f"✅ {len(pd.read_csv(uploaded))} registros!")
+    with col_upload[1]:
+        if st.button("🎲 Generar Ejemplo", use_container_width=True):
+            st.session_state.survival_data = SurvivalState.generate_sample_data()
+            st.rerun()
+    with col_upload[2]:
+        if st.button("🗑️ Limpiar", use_container_width=True):
+            st.session_state.survival_data = None
+            st.rerun()
+    
+    if st.session_state.survival_data is not None and len(st.session_state.survival_data) > 0:
+        df = st.session_state.survival_data
+        edited = st.data_editor(df, num_rows="dynamic", use_container_width=True, hide_index=True,
+            column_config={
+                "ID": st.column_config.NumberColumn("ID", disabled=True),
+                "Tiempo": st.column_config.NumberColumn("Tiempo", min_value=0, format="%.1f"),
+                "Evento": st.column_config.NumberColumn("Evento (0=Censura, 1=Evento)", min_value=0, max_value=1),
+                "Grupo": st.column_config.TextColumn("Grupo"),
+                "Edad": st.column_config.NumberColumn("Edad", min_value=0),
+                "Sexo": st.column_config.TextColumn("Sexo")
             })
+        st.session_state.survival_data = edited
+        
+        col_stats = st.columns(4)
+        with col_stats[0]: st.metric("Muestras", len(edited))
+        with col_stats[1]: st.metric("Eventos", int(edited['Evento'].sum()))
+        with col_stats[2]: st.metric("Censuras", int(len(edited) - edited['Evento'].sum()))
+        with col_stats[3]: st.metric("Tiempo medio", f"{edited['Tiempo'].mean():.1f}")
+    else:
+        st.info("📭 Cargue datos o genere ejemplo.")
 
-        st.markdown("#### Datos de ejemplo (puede editarlos):")
-        edited_survival = st.data_editor(
-            st.session_state.survival_data,
-            num_rows="dynamic",
-            use_container_width=True
-        )
-        st.session_state.survival_data = edited_survival
-
-        col_upload = st.columns(2)
-        with col_upload[0]:
-            uploaded = st.file_uploader("📂 Cargar CSV:", type="csv")
-            if uploaded:
-                df_upload = pd.read_csv(uploaded)
-                st.session_state.survival_data = df_upload
-                st.success("✅ Datos cargados!")
-
-        with col_upload[1]:
-            if st.button("🔄 Datos de Ejemplo"):
-                np.random.seed(42)
-                st.session_state.survival_data = pd.DataFrame({
-                    'ID': range(1, 51),
-                    'Tiempo': np.random.exponential(50, 50).round(1),
-                    'Evento': np.random.binomial(1, 0.3, 50),
-                    'Grupo': np.random.choice(['Tratamiento', 'Control'], 50)
+def render_km_curve():
+    st.markdown("### 📈 Curva de Kaplan-Meier")
+    
+    if st.session_state.survival_data is None or len(st.session_state.survival_data) == 0:
+        st.warning("⚠️ Primero cargue/gener datos")
+        return
+    
+    df = st.session_state.survival_data
+    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    text_cols = [c for c in df.columns if c not in num_cols]
+    
+    col_setup = st.columns([1, 1, 1])
+    with col_setup[0]:
+        time_col = st.selectbox("⏱️ Tiempo:", num_cols, index=0)
+    with col_setup[1]:
+        event_col = st.selectbox("⚠️ Evento:", num_cols, index=min(1, len(num_cols)-1))
+    with col_setup[2]:
+        group_by = st.selectbox("👥 Agrupar:", ['Ninguno'] + text_cols if text_cols else ['Ninguno'])
+    
+    show_ci = st.checkbox("Mostrar IC 95%", value=True)
+    
+    if st.button("📊 GENERAR CURVA KM", use_container_width=True, type="primary"):
+        try:
+            results = {}
+            if group_by == 'Ninguno':
+                results['Global'] = calculate_km_manual(df[time_col].values, df[event_col].values)
+            else:
+                for group in df[group_by].unique():
+                    mask = df[group_by] == group
+                    results[str(group)] = calculate_km_manual(df.loc[mask, time_col].values, df.loc[mask, event_col].values)
+            
+            st.session_state.km_results = results
+            fig, ax = plt.subplots(figsize=(10, 6))
+            plot_km(results, ax, show_ci)
+            plt.tight_layout()
+            st.pyplot(fig)
+            
+            st.markdown("### 📊 Estadísticas")
+            col_stats = st.columns(3)
+            for i, (name, data) in enumerate(results.items()):
+                with col_stats[i % 3]:
+                    median = calculate_median_survival(data['times'], data['survival'])
+                    median_str = f"{median:.1f}" if not np.isinf(median) else "No alcanzada"
+                    st.metric(f"Mediana {name}", median_str)
+            
+            st.markdown("### 📋 Tabla de Vida")
+            timeline = st.slider("Tiempo máx:", 5, int(df[time_col].max()), 50)
+            for name, data in results.items():
+                table = pd.DataFrame({
+                    'Tiempo': data['times'][data['times'] <= timeline],
+                    'Supervivencia': data['survival'][data['times'] <= timeline],
+                    'IC_lower': data['ci_lower'][data['times'] <= timeline],
+                    'IC_upper': data['ci_upper'][data['times'] <= timeline]
                 })
-                st.rerun()
+                with st.expander(f"Tabla {name}"):
+                    st.dataframe(table, use_container_width=True)
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
 
-    with tab_km[1]:
-        st.markdown("### 📈 Curva de Kaplan-Meier")
-
-        if len(st.session_state.survival_data) > 0:
-            KaplanMeierFitter, _, _, _, _, _, _, _ = get_analysis_imports()
-
-            col_km = st.columns(2)
-            with col_km[0]:
-                time_col = st.selectbox("Columna de Tiempo:",
-                                        st.session_state.survival_data.columns)
-            with col_km[1]:
-                event_col = st.selectbox("Columna de Evento:",
-                                        st.session_state.survival_data.columns)
-
-            group_by = st.selectbox("Agrupar por:",
-                                   ['Ninguno'] + [c for c in st.session_state.survival_data.columns
-                                                  if c not in [time_col, event_col]])
-
-            if st.button("📊 GENERAR CURVA KM", use_container_width=True):
-                kmf = KaplanMeierFitter()
-
-                fig, ax = plt.subplots(figsize=(10, 6))
-
-                if group_by == 'Ninguno':
-                    kmf.fit(
-                        st.session_state.survival_data[time_col],
-                        st.session_state.survival_data[event_col],
-                        label='Global'
-                    )
-                    kmf.plot_survival_function(ax=ax, ci_show=True)
-                else:
-                    for group in st.session_state.survival_data[group_by].unique():
-                        mask = st.session_state.survival_data[group_by] == group
-                        kmf.fit(
-                            st.session_state.survival_data.loc[mask, time_col],
-                            st.session_state.survival_data.loc[mask, event_col],
-                            label=str(group)
-                        )
-                        kmf.plot_survival_function(ax=ax, ci_show=True)
-
-                ax.set_xlabel('Tiempo')
-                ax.set_ylabel('Probabilidad de Supervivencia')
-                ax.set_title('Curva de Kaplan-Meier')
-                ax.legend(loc='best')
-                ax.grid(True, alpha=0.3)
-
-                plt.tight_layout()
-                st.pyplot(fig)
-
-                # Medianas de supervivencia
-                st.markdown("### 📊 Estadísticas de Supervivencia")
-
-                col_stat = st.columns(3)
-
-                # Mediana de supervivencia global
-                median_survival = kmf.median_survival_time_
-                with col_stat[0]:
-                    if np.isinf(median_survival):
-                        st.metric("Mediana Supervivencia", "No alcanzada")
-                    else:
-                        st.metric("Mediana Supervivencia", f"{median_survival:.1f}")
-
-                # Tiempo medio de supervivencia
-                with col_stat[1]:
-                    survival_times = st.session_state.survival_data[time_col]
-                    mean_survival = survival_times.mean()
-                    st.metric("Tiempo Medio", f"{mean_survival:.1f}")
-
-                # Tasa de censura
-                with col_stat[2]:
-                    events = st.session_state.survival_data[event_col].sum()
-                    total = len(st.session_state.survival_data)
-                    censors = total - events
-                    st.metric("Eventos / Censuras", f"{events} / {censors}")
-
-                # Tabla de vida
-                st.markdown("### 📋 Tabla de Vida")
-
-                timeline = st.slider("Tiempo máximo:",
-                                    min_value=10,
-                                    max_value=int(st.session_state.survival_data[time_col].max()),
-                                    value=60)
-
-                survival_table = kmf.survival_table_at_times(timeline)
-                st.dataframe(survival_table, use_container_width=True)
-
-    with tab_km[2]:
-        st.markdown("### 📊 Análisis Avanzado")
-
-        if len(st.session_state.survival_data) > 0:
-            from lifelines import LogRankTest
-
-            st.markdown("#### Test de Log-Rank")
-
-            group_col = st.selectbox("Variable de grupo:",
-                                     [c for c in st.session_state.survival_data.columns
-                                      if c != time_col and c != event_col])
-
-            if st.button("🔬 EJECUTAR LOG-RANK", use_container_width=True):
-                groups = st.session_state.survival_data[group_col].unique()
-                if len(groups) == 2:
-                    mask1 = st.session_state.survival_data[group_col] == groups[0]
-                    mask2 = st.session_state.survival_data[group_col] == groups[1]
-
-                    lr_test = LogRankTest(
-                        st.session_state.survival_data.loc[mask1, time_col],
-                        st.session_state.survival_data.loc[mask2, time_col],
-                        st.session_state.survival_data.loc[mask1, event_col],
-                        st.session_state.survival_data.loc[mask2, event_col]
-                    )
-
-                    lr_test.print_summary()
-
-                    col_lr = st.columns(3)
-                    with col_lr[0]:
-                        st.metric("Chi²", f"{lr_test.test_statistic:.2f}")
-                    with col_lr[1]:
-                        st.metric("p-value", f"{lr_test.p_value:.4f}")
-                    with col_lr[2]:
-                        alpha = 0.05
-                        sig = "Significativo" if lr_test.p_value < alpha else "No Significativo"
-                        st.metric("Conclusión (α=0.05)", sig)
-
-                    st.info(f"""
-                    **Interpretación del Test de Log-Rank:**
-
-                    - Hipótesis nula: No hay diferencia en las curvas de supervivencia entre los grupos
-                    - Chi² = {lr_test.test_statistic:.2f}
-                    - p-value = {lr_test.p_value:.4f}
-                    - {'Se rechaza H0: Las curvas son significativamente diferentes' if lr_test.p_value < 0.05 else 'No se puede rechazar H0: No hay evidencia de diferencia'}
-                    """)
-                else:
-                    st.warning("Seleccione una variable con exactamente 2 grupos para el test de Log-Rank")
+def render_advanced_analysis():
+    st.markdown("### 📊 Análisis Avanzado")
+    
+    if st.session_state.survival_data is None or len(st.session_state.survival_data) == 0:
+        st.warning("⚠️ Primero cargue/gener datos")
+        return
+    
+    df = st.session_state.survival_data
+    tabs_adv = st.tabs(["📈 Log-Rank", "📉 HR", "📊 Comparación"])
+    
+    with tabs_adv[0]:
+        st.markdown("#### 🔬 Test de Log-Rank")
+        time_col = df.select_dtypes(include=[np.number]).columns[0]
+        event_col = df.select_dtypes(include=[np.number]).columns[1]
+        group_col = st.selectbox("👥 Grupo:", [c for c in df.columns if c not in ['ID', time_col, event_col]])
+        
+        if st.button("🔬 EJECUTAR LOG-RANK", use_container_width=True, type="primary"):
+            groups = df[group_col].unique()
+            if len(groups) != 2:
+                st.warning(f"⚠️ Se requieren 2 grupos. Encontrados: {len(groups)}")
+                return
+            
+            mask1 = df[group_col] == groups[0]
+            mask2 = df[group_col] == groups[1]
+            result = log_rank_test(df.loc[mask1, time_col].values, df.loc[mask1, event_col].values,
+                                 df.loc[mask2, time_col].values, df.loc[mask2, event_col].values)
+            
+            col_lr = st.columns(3)
+            with col_lr[0]: st.metric("Chi²", f"{result['chi2']:.4f}")
+            with col_lr[1]: st.metric("p-value", f"{result['p_value']:.6f}")
+            with col_lr[2]: st.metric("Conclusión", "✅ Significativo" if result['p_value'] < 0.05 else "❌ No")
+            
+            if result['p_value'] < 0.05:
+                st.success(f"🏆 **Se rechaza H0**: Las curvas difieren significativamente (p={result['p_value']:.4f})")
+            else:
+                st.info(f"📊 **No se puede rechazar H0** (p={result['p_value']:.4f})")
+    
+    with tabs_adv[1]:
+        st.markdown("#### 📉 Ratio de Hazard")
+        st.info("HR > 1 = Mayor riesgo, HR < 1 = Menor riesgo")
+        
+        if st.button("📊 Calcular HR", use_container_width=True, type="primary"):
+            if 'Grupo' not in df.columns:
+                st.warning("⚠️ Se requiere columna 'Grupo'")
+                return
+            
+            groups = df['Grupo'].unique()
+            time_col = df.select_dtypes(include=[np.number]).columns[0]
+            event_col = df.select_dtypes(include=[np.number]).columns[1]
+            result = log_rank_test(df.loc[df['Grupo']==groups[0], time_col].values,
+                                 df.loc[df['Grupo']==groups[0], event_col].values,
+                                 df.loc[df['Grupo']==groups[1], time_col].values,
+                                 df.loc[df['Grupo']==groups[1], event_col].values)
+            
+            hr = np.exp(np.sqrt(result['chi2']) * (1 if result['observed'] > result['expected'] else -1))
+            col_hr = st.columns(3)
+            with col_hr[0]: st.metric("HR", f"{hr:.3f}")
+            with col_hr[1]: st.metric("Riesgo", "Mayor" if hr > 1 else "Menor")
+            with col_hr[2]: st.metric("Interpretación", "Protector" if hr < 0.8 else "Factor riesgo" if hr > 1.2 else "Neutro")
+    
+    with tabs_adv[2]:
+        st.markdown("#### 📊 Comparación de Grupos")
+        
+        if 'Grupo' not in df.columns:
+            st.warning("⚠️ Se requiere columna 'Grupo'")
+            return
+        
+        results = {}
+        for group in df['Grupo'].unique():
+            mask = df['Grupo'] == group
+            time_col = df.select_dtypes(include=[np.number]).columns[0]
+            event_col = df.select_dtypes(include=[np.number]).columns[1]
+            results[str(group)] = calculate_km_manual(df.loc[mask, time_col].values, df.loc[mask, event_col].values)
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        plot_km(results, ax, show_ci=True)
+        plt.tight_layout()
+        st.pyplot(fig)
+        
+        comp_data = [{'Grupo': n, 'Mediana': f"{calculate_median_survival(d['times'], d['survival']):.1f}" 
+                     if not np.isinf(calculate_median_survival(d['times'], d['survival'])) else 'N/A',
+                     'Sup Final': f"{d['survival'][-1]:.3f}"} for n, d in results.items()]
+        st.dataframe(pd.DataFrame(comp_data), use_container_width=True, hide_index=True)
 
 # ==========================================
-# MÓDULO 13: CURVAS ROC
+# MÓDULO PRINCIPAL
 # ==========================================
-elif menu == "🎯 Curvas ROC":
+def render_survival_module(menu: str):
+    if menu != "📉 Supervivencia (KM)":
+        return
+    
+    st.header("📉 Análisis de Supervivencia - Kaplan-Meier")
+    tab_km = st.tabs(["📝 Datos", "📈 Curva KM", "📊 Análisis"])
+    with tab_km[0]: render_data_input()
+    with tab_km[1]: render_km_curve()
+    with tab_km[2]: render_advanced_analysis()
+
+if __name__ == "__main__":
+    st.set_page_config(page_title="Kaplan-Meier", layout="wide")
+    render_survival_module("📉 Supervivencia (KM)")
+    
+# ==========================================
+# MÓDULO 13 OPTIMIZADO: CURVAS ROC
+# ==========================================
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import roc_curve, auc, confusion_matrix, precision_recall_curve, average_precision_score
+from typing import Dict, List, Optional
+
+# ==========================================
+# CLASE: MANEJADOR DE ESTADO
+# ==========================================
+class ROCState:
+    DEFAULTS = {'roc_data': None, 'roc_results': {}}
+
+    @staticmethod
+    def init(key: str, default):
+        if key not in st.session_state:
+            st.session_state[key] = default
+        return st.session_state[key]
+
+    @staticmethod
+    def generate_sample_data(n_samples: int = 200, seed: int = 42) -> pd.DataFrame:
+        np.random.seed(seed)
+        return pd.DataFrame({
+            'ID': range(1, n_samples + 1),
+            'Probabilidad': np.concatenate([np.random.beta(5, 2, n_samples//2), np.random.beta(2, 5, n_samples//2)]),
+            'Probabilidad_2': np.concatenate([np.random.beta(6, 2, n_samples//2), np.random.beta(2, 6, n_samples//2)]),
+            'Probabilidad_3': np.concatenate([np.random.beta(4, 3, n_samples//2), np.random.beta(3, 4, n_samples//2)]),
+            'Real': ['Positivo'] * (n_samples//2) + ['Negativo'] * (n_samples//2)
+        })
+
+ROC_COLORS = ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c']
+
+# ==========================================
+# FUNCIONES HELPER
+# ==========================================
+def calculate_roc_metrics(y_true: np.ndarray, y_score: np.ndarray, threshold: float = None) -> Dict:
+    fpr, tpr, thresholds = roc_curve(y_true, y_score)
+    roc_auc = auc(fpr, tpr)
+    j_idx = np.argmax(tpr - fpr)
+    optimal_threshold = thresholds[j_idx]
+    threshold = threshold or optimal_threshold
+
+    y_pred = (y_score >= threshold).astype(int)
+    cm = confusion_matrix(y_true, y_pred)
+    tn, fp, fn, tp = cm.ravel()
+
+    return {
+        'fpr': fpr, 'tpr': tpr, 'thresholds': thresholds, 'roc_auc': roc_auc,
+        'optimal_threshold': optimal_threshold, 'optimal_fpr': fpr[j_idx], 'optimal_tpr': tpr[j_idx],
+        'confusion_matrix': cm, 'tn': tn, 'fp': fp, 'fn': fn, 'tp': tp,
+        'sensitivity': tp/(tp+fn) if (tp+fn) > 0 else 0,
+        'specificity': tn/(tn+fp) if (tn+fp) > 0 else 0,
+        'ppv': tp/(tp+fp) if (tp+fp) > 0 else 0,
+        'npv': tn/(tn+fn) if (tn+fn) > 0 else 0,
+        'accuracy': (tp+tn)/(tp+tn+fp+fn) if (tp+tn+fp+fn) > 0 else 0,
+        'lr_positive': (tp/(tp+fn))/(1-tn/(tn+fp)) if (1-tn/(tn+fp)) > 0 else 0
+    }
+
+def prepare_binary_labels(series: pd.Series) -> np.ndarray:
+    unique = series.unique()
+    if len(unique) != 2:
+        raise ValueError(f"Se requieren 2 clases, encontradas: {unique}")
+    return (series == unique[0]).astype(int)
+
+def plot_roc(fpr, tpr, roc_auc, opt_fpr, opt_tpr, opt_thr, color='#3498db', ax=None):
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    ax.plot(fpr, tpr, color=color, linewidth=2.5, label=f'ROC (AUC={roc_auc:.3f})')
+    ax.plot([0, 1], [0, 1], 'k--', linewidth=1.5, label='Aleatorio')
+    ax.scatter([opt_fpr], [opt_tpr], color='red', s=150, zorder=5, label=f'Óptimo (θ={opt_thr:.3f})')
+    ax.fill_between(fpr, tpr, alpha=0.3, color=color)
+    ax.set_xlabel('1 - Especificidad (FPR)'); ax.set_ylabel('Sensibilidad (TPR)')
+    ax.set_title('Curva ROC', fontsize=14, fontweight='bold')
+    ax.legend(loc='lower right'); ax.grid(True, alpha=0.3)
+    ax.set_xlim([0, 1]); ax.set_ylim([0, 1])
+    return ax.figure if ax is None else None
+
+def plot_cm(cm, classes, threshold, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    ax.set_title(f'Matriz Confusión (θ={threshold:.3f})', fontsize=12, fontweight='bold')
+    ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
+    ax.set_xticklabels(classes); ax.set_yticklabels(classes)
+    ax.set_xlabel('Predicción'); ax.set_ylabel('Real')
+    thresh = cm.max() / 2
+    for i in range(2):
+        for j in range(2):
+            ax.text(j, i, str(cm[i, j]), ha='center', va='center', fontsize=18, fontweight='bold',
+                   color='white' if cm[i, j] > thresh else 'black')
+    plt.colorbar(im, ax=ax)
+    return ax.figure if ax is None else None
+
+def plot_multi_roc(results, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 8))
+    for i, (name, data) in enumerate(results.items()):
+        ax.plot(data['fpr'], data['tpr'], color=ROC_COLORS[i%len(ROC_COLORS)], linewidth=2.5,
+               label=f"{name} (AUC={data['roc_auc']:.3f})")
+    ax.plot([0, 1], [0, 1], 'k--', linewidth=1.5, label='Aleatorio')
+    ax.set_xlabel('1 - Especificidad'); ax.set_ylabel('Sensibilidad')
+    ax.set_title('Comparación de Curvas ROC', fontsize=14, fontweight='bold')
+    ax.legend(loc='lower right'); ax.grid(True, alpha=0.3)
+    ax.set_xlim([0, 1]); ax.set_ylim([0, 1])
+    return ax.figure if ax is None else None
+
+# ==========================================
+# SUB-MÓDULOS
+# ==========================================
+def render_data_input():
+    st.markdown("### 📝 Ingrese datos para análisis ROC")
+
+    if st.session_state.roc_data is None:
+        st.session_state.roc_data = ROCState.generate_sample_data()
+
+    col_upload = st.columns([1, 1, 1])
+    with col_upload[0]:
+        uploaded = st.file_uploader("📂 Cargar CSV:", type="csv")
+        if uploaded:
+            st.session_state.roc_data = pd.read_csv(uploaded)
+            st.success("✅ Datos cargados!")
+    with col_upload[1]:
+        if st.button("🎲 Generar Ejemplo", use_container_width=True):
+            st.session_state.roc_data = ROCState.generate_sample_data()
+            st.rerun()
+    with col_upload[2]:
+        if st.button("🗑️ Limpiar", use_container_width=True):
+            st.session_state.roc_data = None
+            st.rerun()
+
+    if st.session_state.roc_data is not None and len(st.session_state.roc_data) > 0:
+        df = st.session_state.roc_data
+        st.markdown("#### 📋 Datos:")
+        edited = st.data_editor(df, num_rows="dynamic", use_container_width=True, hide_index=True,
+            column_config={
+                "ID": st.column_config.NumberColumn("ID", disabled=True),
+                "Probabilidad": st.column_config.NumberColumn("Probabilidad", min_value=0, max_value=1, format="%.4f"),
+                "Probabilidad_2": st.column_config.NumberColumn("Prob 2", min_value=0, max_value=1, format="%.4f"),
+                "Probabilidad_3": st.column_config.NumberColumn("Prob 3", min_value=0, max_value=1, format="%.4f"),
+                "Real": st.column_config.TextColumn("Real")
+            })
+        st.session_state.roc_data = edited
+
+        col_stats = st.columns(3)
+        with col_stats[0]: st.metric("Muestras", len(edited))
+        with col_stats[1]: st.metric("Positivos", len(edited[edited['Real']=='Positivo']))
+        with col_stats[2]: st.metric("Negativos", len(edited[edited['Real']=='Negativo']))
+    else:
+        st.info("📭 Cargue datos o genere ejemplo.")
+
+def render_single_roc():
+    st.markdown("### 📈 Curva ROC")
+
+    if st.session_state.roc_data is None or len(st.session_state.roc_data) == 0:
+        st.warning("⚠️ Primero cargue/gener datos en pestaña 'Datos'")
+        return
+
+    df = st.session_state.roc_data
+    pred_col = st.selectbox("📊 Variable de predicción:",
+        options=[c for c in df.columns if c not in ['ID', 'Real']], index=0)
+    actual_col = 'Real' if 'Real' in df.columns else None
+    show_pr = st.checkbox("Mostrar Precision-Recall", value=False)
+
+    if st.button("📊 GENERAR CURVA ROC", use_container_width=True, type="primary"):
+        try:
+            y_true = prepare_binary_labels(df[actual_col])
+            y_score = df[pred_col].values
+            metrics = calculate_roc_metrics(y_true, y_score)
+            st.session_state.roc_results[pred_col] = metrics
+
+            if show_pr:
+                fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+                plot_roc(metrics['fpr'], metrics['tpr'], metrics['roc_auc'],
+                        metrics['optimal_fpr'], metrics['optimal_tpr'], metrics['optimal_threshold'], ax=axes[0])
+                plot_cm(metrics['confusion_matrix'], ['Negativo', 'Positivo'], metrics['threshold_used'], ax=axes[1])
+                precision, recall, _ = precision_recall_curve(y_true, y_score)
+                ap = average_precision_score(y_true, y_score)
+                axes[2].plot(recall, precision, color='#e74c3c', linewidth=2, label=f'PR (AP={ap:.3f})')
+                axes[2].fill_between(recall, precision, alpha=0.3, color='#e74c3c')
+                axes[2].set_xlabel('Sensibilidad'); axes[2].set_ylabel('Precisión')
+                axes[2].set_title('Precision-Recall'); axes[2].legend(); axes[2].grid(True, alpha=0.3)
+            else:
+                fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+                plot_roc(metrics['fpr'], metrics['tpr'], metrics['roc_auc'],
+                        metrics['optimal_fpr'], metrics['optimal_tpr'], metrics['optimal_threshold'], ax=axes[0])
+                plot_cm(metrics['confusion_matrix'], ['Negativo', 'Positivo'], metrics['threshold_used'], ax=axes[1])
+            plt.tight_layout()
+            st.pyplot(fig)
+
+            st.markdown("### 📊 Métricas")
+            col_m = st.columns(4)
+            with col_m[0]: st.metric("AUC-ROC", f"{metrics['roc_auc']:.4f}")
+            with col_m[1]: st.metric("Sensibilidad", f"{metrics['sensitivity']:.4f}")
+            with col_m[2]: st.metric("Especificidad", f"{metrics['specificity']:.4f}")
+            with col_m[3]: st.metric("Punto Corte", f"{metrics['optimal_threshold']:.4f}")
+
+            col_m2 = st.columns(4)
+            with col_m2[0]: st.metric("Exactitud", f"{metrics['accuracy']:.4f}")
+            with col_m2[1]: st.metric("VPP", f"{metrics['ppv']:.4f}")
+            with col_m2[2]: st.metric("VPN", f"{metrics['npv']:.4f}")
+            with col_m2[3]: st.metric("LR+", f"{metrics['lr_positive']:.4f}")
+
+            cm = metrics['confusion_matrix']
+            cm_df = pd.DataFrame({
+                '': ['Real Negativo', 'Real Positivo', 'Total'],
+                'Pred Negativo': [f"{cm[0,0]}", f"{cm[1,0]}", f"{cm[0,0]+cm[1,0]}"],
+                'Pred Positivo': [f"{cm[0,1]}", f"{cm[1,1]}", f"{cm[0,1]+cm[1,1]}"],
+                'Total': [f"{cm[0,0]+cm[0,1]}", f"{cm[1,0]+cm[1,1]}", f"{len(y_true)}"]
+            })
+            st.dataframe(cm_df, use_container_width=True, hide_index=True)
+
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
+
+def render_comparison():
+    st.markdown("### 📊 Comparación de Tests")
+    st.info("Seleccione múltiples predictores para comparar su rendimiento diagnóstico.")
+
+    if st.session_state.roc_data is None or len(st.session_state.roc_data) == 0:
+        st.warning("⚠️ Primero cargue/gener datos")
+        return
+
+    df = st.session_state.roc_data
+    predictor_cols = [c for c in df.columns if c not in ['ID', 'Real']]
+    pred_cols = st.multiselect("📊 Seleccionar predictores:", options=predictor_cols,
+        default=predictor_cols[:min(3, len(predictor_cols))])
+    actual_col = 'Real' if 'Real' in df.columns else None
+
+    if st.button("📊 COMPARAR TESTS", use_container_width=True, type="primary"):
+        try:
+            y_true = prepare_binary_labels(df[actual_col])
+            results = {col: calculate_roc_metrics(y_true, df[col].values) for col in pred_cols}
+            st.session_state.roc_results = results
+
+            fig, ax = plt.subplots(figsize=(10, 8))
+            plot_multi_roc(results, ax)
+            for i, (name, data) in enumerate(results.items()):
+                ax.scatter([data['optimal_fpr']], [data['optimal_tpr']], color=ROC_COLORS[i%len(ROC_COLORS)], s=100, zorder=5)
+            plt.tight_layout()
+            st.pyplot(fig)
+
+            comp_data = [{'Test': n, 'AUC': f"{d['roc_auc']:.4f}", 'Sens': f"{d['sensitivity']:.4f}",
+                         'Esp': f"{d['specificity']:.4f}", 'Exact': f"{d['accuracy']:.4f}"} for n, d in results.items()]
+            comp_df = pd.DataFrame(comp_data).sort_values('AUC', ascending=False)
+            st.dataframe(comp_df, use_container_width=True, hide_index=True)
+
+            best = max(results.items(), key=lambda x: x[1]['roc_auc'])
+            st.success(f"🏆 Mejor test: **{best[0]}** con AUC = {best[1]['roc_auc']:.4f}")
+
+            fig_bar, ax_bar = plt.subplots(figsize=(10, 4))
+            ax_bar.bar(results.keys(), [r['roc_auc'] for r in results.values()],
+                      color=ROC_COLORS[:len(results)], edgecolor='black')
+            ax_bar.axhline(y=0.5, color='red', linestyle='--', label='Aleatorio')
+            ax_bar.set_ylabel('AUC'); ax_bar.set_title('Comparación AUC'); ax_bar.legend(); ax_bar.set_ylim([0, 1])
+            plt.xticks(rotation=15, ha='right')
+            plt.tight_layout()
+            st.pyplot(fig_bar)
+
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
+
+# ==========================================
+# MÓDULO PRINCIPAL
+# ==========================================
+def render_roc_module(menu: str):
+    if menu != "🎯 Curvas ROC":
+        return
+
     st.header("🎯 Curvas ROC - Evaluación Diagnóstica")
-
     tab_roc = st.tabs(["📝 Datos", "📈 Curva ROC", "📊 Comparación"])
 
-    with tab_roc[0]:
-        st.markdown("### 📝 Ingrese datos para análisis ROC")
+    with tab_roc[0]: render_data_input()
+    with tab_roc[1]: render_single_roc()
+    with tab_roc[2]: render_comparison()
 
-        if st.session_state.roc_data is None:
-            np.random.seed(42)
-            n_samples = 200
-            st.session_state.roc_data = pd.DataFrame({
-                'ID': range(1, n_samples + 1),
-                'Probabilidad': np.concatenate([
-                    np.random.beta(5, 2, n_samples//2),  # Verdaderos positivos
-                    np.random.beta(2, 5, n_samples//2)   # Verdaderos negativos
-                ]),
-                'Real': ['Positivo'] * (n_samples//2) + ['Negativo'] * (n_samples//2)
-            })
+if __name__ == "__main__":
+    st.set_page_config(page_title="Curvas ROC", layout="wide")
+    render_roc_module("🎯 Curvas ROC")
+    
+    # ==========================================
+# MÓDULO 14 OPTIMIZADO: MAPAS GEOGRÁFICOS
+# ==========================================
 
-        edited_roc = st.data_editor(
-            st.session_state.roc_data,
-            num_rows="dynamic",
-            use_container_width=True
-        )
-        st.session_state.roc_data = edited_roc
-
-        col_roc_upload = st.columns(2)
-        with col_roc_upload[0]:
-            uploaded_roc = st.file_uploader("📂 Cargar CSV:", type="csv")
-            if uploaded_roc:
-                st.session_state.roc_data = pd.read_csv(uploaded_roc)
-                st.success("✅ Datos cargados!")
-
-        with col_roc_upload[1]:
-            if st.button("🎲 Generar Datos Ejemplo"):
-                np.random.seed(42)
-                n_samples = 200
-                st.session_state.roc_data = pd.DataFrame({
-                    'ID': range(1, n_samples + 1),
-                    'Probabilidad': np.concatenate([
-                        np.random.beta(5, 2, n_samples//2),
-                        np.random.beta(2, 5, n_samples//2)
-                    ]),
-                    'Real': ['Positivo'] * (n_samples//2) + ['Negativo'] * (n_samples//2)
-                })
-                st.rerun()
-
-    with tab_roc[1]:
-        st.markdown("### 📈 Curva ROC")
-
-        if len(st.session_state.roc_data) > 0:
-            _, _, roc_curve, auc, confusion_matrix, _, _, _ = get_analysis_imports()
-
-            col_roc_setup = st.columns(2)
-            with col_roc_setup[0]:
-                pred_col = st.selectbox("Variable de predicción:",
-                                       st.session_state.roc_data.columns)
-            with col_roc_setup[1]:
-                actual_col = st.selectbox("Variable real:",
-                                         st.session_state.roc_data.columns)
-
-            if st.button("📊 GENERAR CURVA ROC", use_container_width=True):
-                # Preparar datos
-                y_true = (st.session_state.roc_data[actual_col] ==
-                         st.session_state.roc_data[actual_col].unique()[0]).astype(int)
-                y_score = st.session_state.roc_data[pred_col]
-
-                # Calcular ROC
-                fpr, tpr, thresholds = roc_curve(y_true, y_score)
-                roc_auc = auc(fpr, tpr)
-
-                # Encontrar punto óptimo (Youden's J)
-                j_scores = tpr - fpr
-                j_idx = np.argmax(j_scores)
-                optimal_threshold = thresholds[j_idx]
-                optimal_fpr = fpr[j_idx]
-                optimal_tpr = tpr[j_idx]
-
-                # Gráfico
-                fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-                # Curva ROC
-                ax1 = axes[0]
-                ax1.plot(fpr, tpr, 'b-', linewidth=2, label=f'ROC (AUC = {roc_auc:.3f})')
-                ax1.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random')
-                ax1.scatter([optimal_fpr], [optimal_tpr], color='red', s=100,
-                          zorder=5, label=f'Optimal (θ={optimal_threshold:.2f})')
-                ax1.fill_between(fpr, tpr, alpha=0.3)
-                ax1.set_xlabel('1 - Especificidad (FPR)')
-                ax1.set_ylabel('Sensibilidad (TPR)')
-                ax1.set_title('Curva ROC')
-                ax1.legend(loc='lower right')
-                ax1.grid(True, alpha=0.3)
-                ax1.set_xlim([0, 1])
-                ax1.set_ylim([0, 1])
-
-                # Matriz de confusión en punto óptimo
-                ax2 = axes[1]
-                y_pred = (y_score >= optimal_threshold).astype(int)
-                cm = confusion_matrix(y_true, y_pred)
-
-                im = ax2.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-                ax2.set_title(f'Matriz de Confusión (θ={optimal_threshold:.2f})')
-
-                classes = ['Negativo', 'Positivo']
-                ax2.set_xticks([0, 1])
-                ax2.set_yticks([0, 1])
-                ax2.set_xticklabels(classes)
-                ax2.set_yticklabels(classes)
-                ax2.set_xlabel('Predicción')
-                ax2.set_ylabel('Real')
-
-                # Añadir valores en la matriz
-                for i in range(2):
-                    for j in range(2):
-                        ax2.text(j, i, str(cm[i, j]), ha='center', va='center',
-                               fontsize=16, fontweight='bold',
-                               color='white' if cm[i, j] > cm.max()/2 else 'black')
-
-                plt.tight_layout()
-                st.pyplot(fig)
-
-                # Métricas
-                st.markdown("### 📊 Métricas de Rendimiento")
-
-                col_metrics_roc = st.columns(4)
-                with col_metrics_roc[0]:
-                    st.metric("AUC-ROC", f"{roc_auc:.3f}")
-                with col_metrics_roc[1]:
-                    st.metric("Sensibilidad", f"{optimal_tpr:.3f}")
-                with col_metrics_roc[2]:
-                    st.metric("Especificidad", f"{1-optimal_fpr:.3f}")
-                with col_metrics_roc[3]:
-                    st.metric("Punto de Corte", f"{optimal_threshold:.3f}")
-
-                # Precisión y valores predictivos
-                tn, fp, fn, tp = cm.ravel()
-                ppv = tp / (tp + fp) if (tp + fp) > 0 else 0
-                npv = tn / (tn + fn) if (tn + fn) > 0 else 0
-                accuracy = (tp + tn) / (tp + tn + fp + fn)
-                precision = ppv
-
-                col_metrics2 = st.columns(4)
-                with col_metrics2[0]:
-                    st.metric("Exactitud", f"{accuracy:.3f}")
-                with col_metrics2[1]:
-                    st.metric("VPP", f"{ppv:.3f}")
-                with col_metrics2[2]:
-                    st.metric("VPN", f"{npv:.3f}")
-                with col_metrics2[3]:
-                    st.metric("LR+", f"{(optimal_tpr)/(1-optimal_fpr):.3f}")
-
-    with tab_roc[2]:
-        st.markdown("### 📊 Comparación de Tests Diagnósticos")
-
-        st.info("""
-        **Comparación de Curvas ROC:**
-
-        Esta funcionalidad permite comparar el rendimiento diagnóstico de múltiples pruebas
-        o marcadores utilizando el área bajo la curva (AUC).
-
-        Para usar esta función:
-        1. Agregue múltiples columnas de predicción a sus datos
-        2. Seleccione las columnas a comparar
-        3. Ejecute el análisis
-        """)
-
-        if len(st.session_state.roc_data.columns) >= 3:
-            pred_cols = st.multiselect("Seleccionar predictores:",
-                                      [c for c in st.session_state.roc_data.columns
-                                       if c not in ['ID', 'Real']])
-
-            if pred_cols and st.button("📊 COMPARAR TESTS", use_container_width=True):
-                _, _, roc_curve, auc, _, _, _, _ = get_analysis_imports()
-
-                fig, ax = plt.subplots(figsize=(10, 8))
-
-                y_true = (st.session_state.roc_data['Real'] ==
-                         st.session_state.roc_data['Real'].unique()[0]).astype(int)
-
-                colors = ['blue', 'red', 'green', 'orange', 'purple']
-                auc_values = {}
-
-                for i, col in enumerate(pred_cols):
-                    y_score = st.session_state.roc_data[col]
-                    fpr, tpr, _ = roc_curve(y_true, y_score)
-                    roc_auc = auc(fpr, tpr)
-                    auc_values[col] = roc_auc
-
-                    ax.plot(fpr, tpr, color=colors[i % len(colors)],
-                           linewidth=2, label=f'{col} (AUC = {roc_auc:.3f})')
-
-                ax.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Random')
-                ax.set_xlabel('1 - Especificidad (FPR)')
-                ax.set_ylabel('Sensibilidad (TPR)')
-                ax.set_title('Comparación de Curvas ROC')
-                ax.legend(loc='lower right')
-                ax.grid(True, alpha=0.3)
-
-                plt.tight_layout()
-                st.pyplot(fig)
-
-                # Tabla de comparación
-                comparison_df = pd.DataFrame({
-                    'Test': list(auc_values.keys()),
-                    'AUC': list(auc_values.values())
-                }).sort_values('AUC', ascending=False)
-
-                st.dataframe(comparison_df, use_container_width=True)
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+from typing import Dict, List, Optional, Tuple
+from functools import lru_cache
 
 # ==========================================
-# MÓDULO 14: MAPAS GEOGRÁFICOS
+# CLASE: MANEJADOR DE ESTADO CENTRALIZADO
 # ==========================================
-elif menu == "🗺️ Mapas Geográficos":
-    st.header("🗺️ Mapas Geográficos - Epidemiología Espacial")
+class MapState:
+    """Manejador centralizado de estado para mapas geográficos."""
 
-    tab_map = st.tabs(["📊 Coroplético", "🔥 Heatmap", "📍 Marcadores"])
-
-    with tab_map[0]:
-        st.markdown("### 📊 Mapa Coroplético - Incidencia por Región")
-
-        if 'map_data' not in st.session_state:
-            st.session_state.map_data = pd.DataFrame({
-                'Region': ['Antioquia', 'Cundinamarca', 'Valle del Cauca', 'Atlántico',
-                          'Santander', 'Bolívar', 'Córdoba', 'Nariño', 'Boyacá', 'Cauca'],
-                'Casos': [1500, 1200, 1100, 900, 800, 750, 600, 550, 500, 450],
-                'Poblacion': [6500000, 3000000, 4500000, 2500000, 2000000, 2100000,
-                             1800000, 1600000, 1400000, 1300000],
-                'Lat': [6.2442, 4.6210, 3.8000, 10.9685, 7.1190, 10.3910, 8.7479,
-                       1.2897, 5.7639, 2.7580],
-                'Lon': [-75.5812, -74.0674, -76.5220, -74.7813, -73.1198, -75.5142,
-                       -75.8813, -77.6428, -72.9077, -76.6136]
-            })
-
-        st.markdown("#### Datos de ejemplo (Colombia):")
-        edited_map = st.data_editor(
-            st.session_state.map_data,
-            num_rows="dynamic",
-            use_container_width=True
-        )
-        st.session_state.map_data = edited_map
-
-        col_map_setup = st.columns(2)
-        with col_map_setup[0]:
-            metric_map = st.selectbox("Métrica a visualizar:",
-                                     ['Casos', 'Tasa por 100,000', 'Población'])
-        with col_map_setup[1]:
-            color_scale = st.selectbox("Escala de color:",
-                                       ['Reds', 'Blues', 'Viridis', 'Plasma', 'RdYlGn_r'])
-
-        if metric_map == 'Tasa por 100,000':
-            st.session_state.map_data['Tasa'] = (
-                st.session_state.map_data['Casos'] /
-                st.session_state.map_data['Poblacion'] * 100000
-            )
-            color_col = 'Tasa'
-        else:
-            color_col = metric_map
-
-        if st.button("🗺️ GENERAR MAPA", use_container_width=True):
-            fig = px.scatter_mapbox(
-                st.session_state.map_data,
-                lat='Lat',
-                lon='Lon',
-                size=color_col,
-                color=color_col,
-                color_continuous_scale=color_scale,
-                hover_name='Region',
-                hover_data={
-                    'Casos': True,
-                    'Poblacion': True,
-                    'Lat': False,
-                    'Lon': False,
-                    'Tasa': ':.2f' if metric_map == 'Tasa por 100,000' else False
-                },
-                zoom=5,
-                center={'lat': 4.5709, 'lon': -74.2973},
-                height=600,
-                title=f'Mapa Coroplético - {metric_map}'
-            )
-
-            fig.update_layout(mapbox_style='carto-darkmatter')
-            fig.update_layout(margin=dict(l=0, r=0, t=50, b=0))
-
-            st.plotly_chart(fig, use_container_width=True)
-
-    with tab_map[1]:
-        st.markdown("### 🔥 Mapa de Calor - Densidad de Casos")
-
-        st.info("""
-        **Mapa de Calor (Heatmap):**
-
-        Visualice la distribución espacial de casos o eventos de salud
-        para identificar áreas de alta concentración o "hotspots".
-        """)
-
-        if st.button("🔥 GENERAR HEATMAP", use_container_width=True):
-            # Generar puntos de calor simulados
-            np.random.seed(42)
-            n_points = 500
-
-            # Centroides de las regiones con más casos
-            hotspots = {
-                'Bogotá': (4.7110, -74.0721, 150),
-                'Medellín': (6.2442, -75.5812, 100),
-                'Cali': (3.8000, -76.5220, 80),
-                'Barranquilla': (10.9685, -74.7813, 60)
-            }
-
-            heat_data = []
-            for city, (lat, lon, weight) in hotspots.items():
-                for _ in range(weight):
-                    lat_jitter = lat + np.random.normal(0, 0.3)
-                    lon_jitter = lon + np.random.normal(0, 0.3)
-                    heat_data.append({'lat': lat_jitter, 'lon': lon_jitter, 'city': city})
-
-            df_heat = pd.DataFrame(heat_data)
-
-            fig = px.density_mapbox(
-                df_heat,
-                lat='lat',
-                lon='lon',
-                radius=15,
-                center={'lat': 4.5709, 'lon': -74.2973},
-                zoom=5,
-                mapbox_style='carto-darkmatter',
-                title='Mapa de Calor - Distribución de Casos'
-            )
-
-            fig.update_layout(height=600, margin=dict(l=0, r=0, t=50, b=0))
-            st.plotly_chart(fig, use_container_width=True)
-
-    with tab_map[2]:
-        st.markdown("### 📍 Mapa con Marcadores - Ubicaciones Específicas")
-
-        st.markdown("""
-        **Mapa de Marcadores:**
-
-        Visualice ubicaciones específicas como:
-        - Centros de salud
-        - Casos individuales
-        - Recursos hospitalarios
-        """)
-
-        marker_data = pd.DataFrame({
+    DEFAULTS = {
+        'map_data': pd.DataFrame({
+            'Pais': ['Colombia'] * 10,
+            'Departamento': ['Antioquia', 'Cundinamarca', 'Valle del Cauca', 'Atlántico',
+                            'Santander', 'Bolívar', 'Córdoba', 'Nariño', 'Boyacá', 'Cauca'],
+            'Municipio': ['Medellín', 'Bogotá', 'Cali', 'Barranquilla', 'Bucaramanga',
+                        'Cartagena', 'Montería', 'Pasto', 'Tunja', 'Popayán'],
+            'Casos': [1500, 1200, 1100, 900, 800, 750, 600, 550, 500, 450],
+            'Poblacion': [6500000, 3000000, 4500000, 2500000, 2000000, 2100000,
+                         1800000, 1600000, 1400000, 1300000]
+        }),
+        'marker_data': pd.DataFrame({
             'Nombre': ['Hospital Central', 'Clínica del Norte', 'Centro de Salud Sur',
                       'UCI Móvil 1', 'UCI Móvil 2'],
-            'Lat': [6.2474, 6.2600, 6.2300, 6.2500, 6.2550],
-            'Lon': [-75.5800, -75.5600, -75.5900, -75.5700, -75.5650],
+            'Pais': ['Colombia'] * 5,
+            'Departamento': ['Antioquia'] * 5,
+            'Municipio': ['Medellín', 'Medellín', 'Medellín', 'Medellín', 'Medellín'],
             'Tipo': ['Hospital', 'Clínica', 'CentroSalud', 'UCI', 'UCI'],
             'Capacidad': [200, 150, 50, 20, 20]
         })
+    }
 
-        fig = px.scatter_mapbox(
-            marker_data,
-            lat='Lat',
-            lon='Lon',
-            color='Tipo',
-            size='Capacidad',
-            hover_name='Nombre',
-            hover_data={'Capacidad': True, 'Lat': False, 'Lon': False},
-            zoom=12,
-            center={'lat': 6.2474, 'lon': -75.5750},
-            height=500,
-            title='Ubicaciones de Recursos de Salud'
+    @staticmethod
+    def init(key: str, default):
+        if key not in st.session_state:
+            st.session_state[key] = default
+        return st.session_state[key]
+
+    @staticmethod
+    def reset(key: str) -> None:
+        if key in MapState.DEFAULTS:
+            st.session_state[key] = MapState.DEFAULTS[key]
+
+# ==========================================
+# BASE DE DATOS DE COORDENADAS
+# ==========================================
+GEO_DATABASE = {
+    # Colombia
+    ('Colombia', 'Antioquia', 'Medellín'): (6.2442, -75.5812),
+    ('Colombia', 'Antioquia', 'Bello'): (6.3374, -75.5576),
+    ('Colombia', 'Cundinamarca', 'Bogotá'): (4.7110, -74.0721),
+    ('Colombia', 'Valle del Cauca', 'Cali'): (3.8000, -76.5220),
+    ('Colombia', 'Atlántico', 'Barranquilla'): (10.9685, -74.7813),
+    ('Colombia', 'Santander', 'Bucaramanga'): (7.1190, -73.1198),
+    ('Colombia', 'Bolívar', 'Cartagena'): (10.3910, -75.5142),
+    ('Colombia', 'Córdoba', 'Montería'): (8.7479, -75.8813),
+    ('Colombia', 'Nariño', 'Pasto'): (1.2897, -77.6428),
+    ('Colombia', 'Boyacá', 'Tunja'): (5.7639, -72.9077),
+    ('Colombia', 'Cauca', 'Popayán'): (2.7580, -76.6136),
+    ('Colombia', 'Meta', 'Villavicencio'): (4.1420, -73.6269),
+    ('Colombia', 'Huila', 'Neiva'): (2.5363, -75.2803),
+    ('Colombia', 'Caldas', 'Manizales'): (5.0689, -75.5174),
+    ('Colombia', 'Risaralda', 'Pereira'): (4.8136, -75.6909),
+    ('Colombia', 'Norte de Santander', 'Cúcuta'): (7.8892, -72.4967),
+    ('Colombia', 'Tolima', 'Ibagué'): (4.4447, -75.2318),
+    ('Colombia', 'Cesar', 'Valledupar'): (10.4631, -73.2532),
+    ('Colombia', 'Magdalena', 'Santa Marta'): (11.2408, -74.2099),
+    ('Colombia', 'Quindío', 'Armenia'): (4.5333, -75.6833),
+    # Estados Unidos
+    ('Estados Unidos', 'California', 'Los Angeles'): (34.0522, -118.2437),
+    ('Estados Unidos', 'California', 'San Francisco'): (37.7749, -122.4194),
+    ('Estados Unidos', 'New York', 'New York City'): (40.7128, -74.0060),
+    ('Estados Unidos', 'Texas', 'Houston'): (29.7604, -95.3698),
+    ('Estados Unidos', 'Florida', 'Miami'): (25.7617, -80.1918),
+    # México
+    ('México', 'CDMX', 'Ciudad de México'): (19.4326, -99.1332),
+    ('México', 'Jalisco', 'Guadalajara'): (20.6597, -103.3496),
+    ('México', 'Nuevo León', 'Monterrey'): (25.6866, -100.3161),
+    # Argentina
+    ('Argentina', 'Buenos Aires', 'Buenos Aires'): (-34.6037, -58.3816),
+    ('Argentina', 'Córdoba', 'Córdoba'): (-31.4201, -64.1888),
+    # España
+    ('España', 'Madrid', 'Madrid'): (40.4168, -3.7038),
+    ('España', 'Barcelona', 'Barcelona'): (41.3851, 2.1734),
+    # Brasil
+    ('Brasil', 'São Paulo', 'São Paulo'): (-23.5505, -46.6333),
+    ('Brasil', 'Rio de Janeiro', 'Rio de Janeiro'): (-22.9068, -43.1729),
+    # Perú
+    ('Perú', 'Lima', 'Lima'): (-12.0464, -77.0428),
+    # Chile
+    ('Chile', 'Santiago', 'Santiago'): (-33.4489, -70.6693),
+}
+
+AVAILABLE_COUNTRIES = sorted(list(set(geo[0] for geo in GEO_DATABASE.keys())))
+
+# ==========================================
+# CONSTANTES
+# ==========================================
+MAPBOX_STYLE = 'carto-darkmatter'
+DEFAULT_CENTER = {'lat': 4.5709, 'lon': -74.2973}
+DEFAULT_ZOOM = 5
+
+METRIC_OPTIONS = {'Casos': 'Casos', 'Tasa por 100,000': 'Tasa', 'Población': 'Poblacion'}
+COLOR_SCALES = {'Rojo': 'Reds', 'Azul': 'Blues', 'Verde': 'Viridis', 'Plasma': 'Plasma', 'RdYlGn_r': 'RdYlGn_r'}
+
+DEFAULT_HOTSPOTS = {
+    'Bogotá': (4.7110, -74.0721, 150),
+    'Medellín': (6.2442, -75.5812, 100),
+    'Cali': (3.8000, -76.5220, 80),
+    'Barranquilla': (10.9685, -74.7813, 60)
+}
+
+# ==========================================
+# FUNCIONES HELPER
+# ==========================================
+def get_coordinates(pais: str, departamento: str, municipio: str) -> Tuple[Optional[float], Optional[float], bool]:
+    key = (pais, departamento, municipio)
+    if key in GEO_DATABASE:
+        return GEO_DATABASE[key][0], GEO_DATABASE[key][1], True
+    return None, None, False
+
+def geocode_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df['Lat'] = None
+    df['Lon'] = None
+    for idx, row in df.iterrows():
+        pais = row.get('Pais', 'Colombia')
+        depto = row.get('Departamento', '')
+        muni = row.get('Municipio', '')
+        lat, lon, found = get_coordinates(pais, depto, muni)
+        if found:
+            df.at[idx, 'Lat'] = lat
+            df.at[idx, 'Lon'] = lon
+        else:
+            for (p, d, m), (la, lo) in GEO_DATABASE.items():
+                if p == pais and d == depto:
+                    df.at[idx, 'Lat'] = la
+                    df.at[idx, 'Lon'] = lo
+                    break
+    return df
+
+def calculate_tasa(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df['Tasa'] = (df['Casos'] / df['Poblacion'] * 100000).round(2)
+    return df
+
+# ==========================================
+# SUB-MÓDULO: MAPA COROPLÉTICO
+# ==========================================
+def render_choropleth_tab():
+    st.markdown("### 📊 Mapa Coroplético - Incidencia por Ubicación")
+    st.caption("Ingrese País, Departamento y Municipio como en Power BI.")
+
+    map_data = MapState.init('map_data', MapState.DEFAULTS['map_data'])
+
+    col_setup = st.columns([1, 1, 1])
+    with col_setup[0]:
+        metric_map = st.selectbox("📊 Métrica:", options=list(METRIC_OPTIONS.keys()), index=0)
+    with col_setup[1]:
+        scale_name = st.selectbox("🎨 Escala:", options=list(COLOR_SCALES.keys()), index=0)
+        color_scale = COLOR_SCALES[scale_name]
+    with col_setup[2]:
+        show_table = st.checkbox("Mostrar tabla", value=True)
+
+    if show_table:
+        st.markdown("#### 📋 Datos de Ubicaciones:")
+        edited_map = st.data_editor(
+            map_data, num_rows="dynamic", use_container_width=True, hide_index=True,
+            column_config={
+                "Pais": st.column_config.SelectboxColumn("País", options=AVAILABLE_COUNTRIES),
+                "Departamento": st.column_config.TextColumn("Departamento", required=True),
+                "Municipio": st.column_config.TextColumn("Ciudad/Municipio", required=True),
+                "Casos": st.column_config.NumberColumn("Casos", min_value=0, format="%d"),
+                "Poblacion": st.column_config.NumberColumn("Población", min_value=1, format="%d"),
+                "Tasa": st.column_config.NumberColumn("Tasa", format="%.2f", disabled=True)
+            }
         )
+        st.session_state.map_data = edited_map
+    else:
+        edited_map = map_data
 
-        fig.update_layout(mapbox_style='carto-darkmatter')
+    if metric_map == 'Tasa por 100,000':
+        edited_map = calculate_tasa(edited_map)
+        color_col = 'Tasa'
+    else:
+        color_col = METRIC_OPTIONS[metric_map]
+
+    geocoded_data = geocode_dataframe(edited_map).dropna(subset=['Lat', 'Lon'])
+
+    if st.button("🗺️ GENERAR MAPA", use_container_width=True, type="primary"):
+        try:
+            fig = px.scatter_mapbox(
+                geocoded_data, lat='Lat', lon='Lon', size=color_col, color=color_col,
+                color_continuous_scale=color_scale, hover_name='Municipio',
+                hover_data={'Pais': True, 'Departamento': True, 'Casos': True,
+                           'Poblacion': ':,d', 'Tasa': ':.2f', 'Lat': False, 'Lon': False},
+                zoom=DEFAULT_ZOOM, center=DEFAULT_CENTER, height=600, title=f'Mapa Coroplético - {metric_map}'
+            )
+            fig.update_layout(mapbox_style=MAPBOX_STYLE, margin=dict(l=0, r=0, t=50, b=0))
+            st.plotly_chart(fig, use_container_width=True)
+
+            col_stat = st.columns(3)
+            with col_stat[0]:
+                st.metric("Total Casos", f"{geocoded_data['Casos'].sum():,}")
+            with col_stat[1]:
+                st.metric("Ubicaciones", len(geocoded_data))
+            with col_stat[2]:
+                avg_tasa = (geocoded_data['Casos'].sum() / geocoded_data['Poblacion'].sum() * 100000)
+                st.metric("Tasa Promedio", f"{avg_tasa:.2f} x100k")
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
+
+# ==========================================
+# SUB-MÓDULO: HEATMAP
+# ==========================================
+def render_heatmap_tab():
+    st.markdown("### 🔥 Mapa de Calor - Densidad de Casos")
+    st.info("Configure los centros de concentración de casos (hotspots).")
+
+    hotspots_config = {}
+    with st.expander("⚙️ Configurar Hotspots", expanded=False):
+        for city, (lat, lon, weight) in DEFAULT_HOTSPOTS.items():
+            col_h = st.columns([2, 2, 1])
+            with col_h[0]:
+                st.caption(f"📍 {city}")
+            with col_h[1]:
+                hotspots_config[city] = (lat, lon, st.slider(f"Peso {city}", 0, 300, weight, key=f"hw_{city}"))
+
+    base_style = st.selectbox("Estilo:", ['carto-darkmatter', 'carto-positron', 'open-street-map'],
+                            format_func=lambda x: x.replace('-', ' ').title())
+
+    if st.button("🔥 GENERAR HEATMAP", use_container_width=True, type="primary"):
+        with st.spinner("Generando..."):
+            try:
+                heat_data = []
+                for city, (lat, lon, weight) in hotspots_config.items():
+                    for _ in range(weight):
+                        heat_data.append({'lat': lat + np.random.normal(0, 0.3),
+                                        'lon': lon + np.random.normal(0, 0.3), 'city': city})
+                df_heat = pd.DataFrame(heat_data)
+
+                fig = px.density_mapbox(df_heat, lat='lat', lon='lon', radius=15,
+                                        center=DEFAULT_CENTER, zoom=DEFAULT_ZOOM,
+                                        mapbox_style=base_style, title='Mapa de Calor')
+                fig.update_layout(height=600, margin=dict(l=0, r=0, t=50, b=0))
+                st.plotly_chart(fig, use_container_width=True)
+                st.success(f"✅ {len(df_heat):,} puntos de calor")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+
+# ==========================================
+# SUB-MÓDULO: MARCADORES
+# ==========================================
+def render_markers_tab():
+    st.markdown("### 📍 Mapa con Marcadores - Ubicaciones Específicas")
+    st.markdown("Visualice centros de salud, casos individuales, recursos hospitalarios.")
+
+    marker_data = MapState.init('marker_data', MapState.DEFAULTS['marker_data'])
+
+    st.markdown("#### 📋 Gestionar Ubicaciones:")
+    edited_markers = st.data_editor(
+        marker_data, num_rows="dynamic", use_container_width=True, hide_index=True,
+        column_config={
+            "Nombre": st.column_config.TextColumn("Nombre", required=True),
+            "Pais": st.column_config.SelectboxColumn("País", options=AVAILABLE_COUNTRIES),
+            "Departamento": st.column_config.TextColumn("Departamento"),
+            "Municipio": st.column_config.TextColumn("Ciudad/Municipio"),
+            "Tipo": st.column_config.SelectboxColumn("Tipo",
+                options=["Hospital", "Clínica", "CentroSalud", "UCI", "Laboratorio", "Farmacia"]),
+            "Capacidad": st.column_config.NumberColumn("Capacidad", min_value=0, format="%d")
+        }
+    )
+    st.session_state.marker_data = edited_markers
+
+    geocoded_markers = geocode_dataframe(edited_markers)
+
+    col_view = st.columns([1, 1, 1])
+    with col_view[0]:
+        zoom_level = st.slider("🔍 Zoom", 5, 18, 12)
+    with col_view[1]:
+        tipo_filtro = st.multiselect("Filtrar por tipo:",
+            options=edited_markers['Tipo'].unique().tolist(),
+            default=edited_markers['Tipo'].unique().tolist())
+    with col_view[2]:
+        show_table = st.checkbox("Mostrar tabla", value=True)
+
+    filtered_geo = geocoded_markers[geocoded_markers['Tipo'].isin(tipo_filtro)].dropna(subset=['Lat', 'Lon'])
+
+    if len(filtered_geo) > 0:
+        fig = px.scatter_mapbox(
+            filtered_geo, lat='Lat', lon='Lon', color='Tipo', size='Capacidad',
+            hover_name='Nombre', hover_data={'Pais': True, 'Departamento': True, 'Municipio': True,
+                                           'Capacidad': True, 'Lat': False, 'Lon': False},
+            zoom=zoom_level, center={'lat': filtered_geo['Lat'].mean(), 'lon': filtered_geo['Lon'].mean()},
+            height=500, title='Ubicaciones de Salud'
+        )
+        fig.update_layout(mapbox_style=MAPBOX_STYLE)
         st.plotly_chart(fig, use_container_width=True)
 
-        st.dataframe(marker_data, use_container_width=True)
+        if show_table:
+            st.dataframe(edited_markers[edited_markers['Tipo'].isin(tipo_filtro)], use_container_width=True, hide_index=True)
+
+        col_stat = st.columns(4)
+        with col_stat[0]:
+            st.metric("Ubicaciones", len(filtered_geo))
+        with col_stat[1]:
+            st.metric("Capacidad Total", f"{filtered_geo['Capacidad'].sum():,}")
+        with col_stat[2]:
+            st.metric("Hospitales", len(filtered_geo[filtered_geo['Tipo'] == 'Hospital']))
+        with col_stat[3]:
+            st.metric("UCI's", len(filtered_geo[filtered_geo['Tipo'] == 'UCI']))
+    else:
+        st.warning("⚠️ No hay ubicaciones con los filtros seleccionados.")
 
 # ==========================================
-# MÓDULO 15: BIOINFORMÁTICA
+# MÓDULO PRINCIPAL
 # ==========================================
-elif menu == "🧬 Bioinformática":
+def render_geographic_maps_module(menu: str):
+    if menu != "🗺️ Mapas Geográficos":
+        return
+
+    st.header("🗺️ Mapas Geográficos - Epidemiología Espacial")
+    st.markdown("Ingrese ubicación por texto (País, Departamento, Ciudad) como en Power BI.")
+
+    tab_map = st.tabs(["📊 Coroplético", "🔥 Heatmap", "📍 Marcadores"])
+    with tab_map[0]:
+        render_choropleth_tab()
+    with tab_map[1]:
+        render_heatmap_tab()
+    with tab_map[2]:
+        render_markers_tab()
+
+if __name__ == "__main__":
+    st.set_page_config(page_title="Mapas Geográficos", layout="wide")
+    render_geographic_maps_module("🗺️ Mapas Geográficos")
+
+# ==========================================
+# MÓDULO 15 OPTIMIZADO: BIOINFORMÁTICA
+# ==========================================
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from collections import Counter
+from typing import Dict, List, Tuple
+import io
+
+# ==========================================
+# CONSTANTES
+# ==========================================
+CODON_TABLE = {
+    'TTT': 'F', 'TTC': 'F', 'TTA': 'L', 'TTG': 'L', 'CTT': 'L', 'CTC': 'L', 'CTA': 'L', 'CTG': 'L',
+    'ATT': 'I', 'ATC': 'I', 'ATA': 'I', 'ATG': 'M',
+    'GTT': 'V', 'GTC': 'V', 'GTA': 'V', 'GTG': 'V',
+    'TCT': 'S', 'TCC': 'S', 'TCA': 'S', 'TCG': 'S', 'AGT': 'S', 'AGC': 'S',
+    'CCT': 'P', 'CCC': 'P', 'CCA': 'P', 'CCG': 'P',
+    'ACT': 'T', 'ACC': 'T', 'ACA': 'T', 'ACG': 'T',
+    'GCT': 'A', 'GCC': 'A', 'GCA': 'A', 'GCG': 'A',
+    'TAT': 'Y', 'TAC': 'Y', 'CAT': 'H', 'CAC': 'H', 'CAA': 'Q', 'CAG': 'Q',
+    'AAT': 'N', 'AAC': 'N', 'AAA': 'K', 'AAG': 'K',
+    'GAT': 'D', 'GAC': 'D', 'GAA': 'E', 'GAG': 'E',
+    'TGT': 'C', 'TGC': 'C', 'TGG': 'W',
+    'CGT': 'R', 'CGC': 'R', 'CGA': 'R', 'CGG': 'R', 'AGA': 'R', 'AGG': 'R',
+    'GGT': 'G', 'GGC': 'G', 'GGA': 'G', 'GGG': 'G',
+    'TAA': '*', 'TAG': '*', 'TGA': '*'
+}
+
+AMINO_ACID_NAMES = {
+    'A': 'Alanina', 'R': 'Arginina', 'N': 'Asparagina', 'D': 'Aspartico',
+    'C': 'Cisteina', 'E': 'Glutamico', 'Q': 'Glutamina', 'G': 'Glicina',
+    'H': 'Histidina', 'I': 'Isoleucina', 'L': 'Leucina', 'K': 'Lisina',
+    'M': 'Metionina', 'F': 'Fenilalanina', 'P': 'Prolina', 'S': 'Serina',
+    'T': 'Treonina', 'W': 'Triptofano', 'Y': 'Tirosina', 'V': 'Valina', '*': 'STOP'
+}
+
+VALID_BASES = set('AGTCUN')
+
+# ==========================================
+# FUNCIONES HELPER
+# ==========================================
+def validate_sequence(seq: str) -> Tuple[bool, List[str], str]:
+    seq_clean = seq.upper().replace(" ", "").replace("\n", "")
+    if not seq_clean:
+        return False, [], "vacía"
+    invalid = [b for b in seq_clean if b not in VALID_BASES]
+    if invalid:
+        return False, list(set(invalid)), "inválida"
+    return True, [], "RNA" if 'U' in seq_clean else "DNA"
+
+def clean_sequence(seq: str) -> str:
+    return seq.upper().replace(" ", "").replace("\n", "")
+
+def calculate_gc_content(seq: str) -> Tuple[float, float, int]:
+    seq_upper = seq.upper()
+    length = len(seq_upper)
+    if length == 0:
+        return 0.0, 0.0, 0
+    gc = (seq_upper.count('G') + seq_upper.count('C')) / length
+    at = (seq_upper.count('A') + seq_upper.count('T') + seq_upper.count('U')) / length
+    return gc, at, length
+
+def get_reverse_complement(seq: str, is_rna: bool = False) -> str:
+    comp_map = {'A': 'T' if not is_rna else 'U', 'T': 'A', 'U': 'A', 'G': 'C', 'C': 'G', 'N': 'N'}
+    return ''.join(comp_map.get(b, 'N') for b in seq.upper())[::-1]
+
+def translate_sequence(seq: str, frame: int = 1) -> Tuple[str, List[Tuple[str, str]]]:
+    codons = []
+    protein = []
+    start = frame - 1
+    for i in range(start, len(seq.upper()) - (len(seq.upper()) - start) % 3, 3):
+        codon = seq.upper()[i:i+3]
+        if len(codon) == 3:
+            aa = CODON_TABLE.get(codon, 'X')
+            protein.append(aa)
+            codons.append((codon, aa))
+    return ''.join(protein), codons
+
+def find_orfs(seq: str, min_length: int = 30) -> List[Dict]:
+    orfs = []
+    for frame in range(3):
+        start = frame
+        in_orf = False
+        orf_start = 0
+        orf_seq = ""
+        for i in range(start, len(seq.upper()) - 2, 3):
+            codon = seq.upper()[i:i+3]
+            if codon == 'ATG' and not in_orf:
+                in_orf = True
+                orf_start = i
+                orf_seq = codon
+            elif in_orf:
+                orf_seq += codon
+                if CODON_TABLE.get(codon) == '*':
+                    if len(orf_seq) >= min_length:
+                        protein = ''.join([CODON_TABLE.get(codon[j:j+3], 'X') for j in range(0, len(orf_seq), 3)])
+                        orfs.append({'frame': frame + 1, 'start': orf_start, 'end': i + 3, 'length': len(orf_seq), 'sequence': orf_seq, 'protein': protein})
+                    in_orf = False
+                    orf_seq = ""
+    return sorted(orfs, key=lambda x: x['length'], reverse=True)
+
+def plot_nucleotide_composition(seq: str) -> plt.Figure:
+    comp = Counter(seq.upper())
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+    bases = ['A', 'T', 'G', 'C', 'U'] if 'U' in seq.upper() else ['A', 'T', 'G', 'C']
+    counts = [comp.get(b, 0) for b in bases]
+    colors = {'A': '#e74c3c', 'T': '#3498db', 'G': '#2ecc71', 'C': '#f39c12', 'U': '#9b59b6'}
+    ax1.bar(bases, counts, color=[colors.get(b, '#95a5a6') for b in bases], edgecolor='black')
+    ax1.set_xlabel('Nucleótido'); ax1.set_ylabel('Conteo'); ax1.set_title('Composición')
+    for i, c in enumerate(counts): ax1.text(i, c + max(counts)*0.02, str(c), ha='center', fontweight='bold')
+    if sum(counts) > 0:
+        ax2.pie(counts, labels=bases, colors=[colors.get(b, '#95a5a6') for b in bases], autopct='%1.1f%%', startangle=90)
+        ax2.set_title('Distribución')
+    plt.tight_layout()
+    return fig
+
+# ==========================================
+# RENDERIZADO PRINCIPAL
+# ==========================================
+def render_bioinformatics_module(menu: str):
+    if menu != "🧬 Bioinformática":
+        return
+
     st.header("🧬 Análisis de Secuencias Genéticas")
 
-    seq = st.text_area(
-        "🔬 Secuencia DNA/RNA:",
-        placeholder="ATGCCGTAGCTGATCGATCGATCG...",
-        height=150
-    ).upper().replace(" ", "").replace("\n", "")
+    # Entrada
+    col_input = st.columns([1, 1])
+    with col_input[0]:
+        input_method = st.radio("Método:", ["Texto directo", "Archivo FASTA"], horizontal=True, key="input_method")
 
-    col_seq_btn = st.columns([1, 3, 1])
-    with col_seq_btn[1]:
-        analyze_seq = st.button("🧬 ANALIZAR SECUENCIA", use_container_width=True)
+    seq = ""
+    if input_method == "Texto directo":
+        seq = st.text_area("Secuencia DNA/RNA:", placeholder="ATGCCGTAGCTG...", height=150, key="seq_input").strip()
+    else:
+        uploaded = st.file_uploader("Cargar FASTA", type=['fasta', 'fa', 'txt'], key="fasta_input")
+        if uploaded:
+            content = uploaded.read().decode('utf-8')
+            seq = ''.join([l.strip() for l in content.split('\n') if not l.startswith('>')])
 
-    if seq and analyze_seq:
-        valid_bases = set('AGTCUN')
-        invalid = [b for b in seq if b not in valid_bases]
+    if seq:
+        is_valid, invalid, seq_type = validate_sequence(seq)
+        if not is_valid:
+            st.error(f"❌ Bases inválidas: {invalid}")
+            return
 
-        if invalid:
-            st.error(f"❌ Bases inválidas encontradas: {set(invalid)}")
-        else:
-            col_stats = st.columns(3)
+        seq = clean_sequence(seq)
+        st.success(f"✅ {seq_type} válida - {len(seq)} pb")
 
-            gc = (seq.count('G') + seq.count('C')) / len(seq) if len(seq) > 0 else 0
-            with col_stats[0]:
-                st.metric("📊 Contenido GC", f"{gc:.2%}")
-            with col_stats[1]:
-                st.metric("📏 Longitud", f"{len(seq)} pb")
-            with col_stats[2]:
-                at = (seq.count('A') + seq.count('T') + seq.count('U')) / len(seq) if len(seq) > 0 else 0
-                st.metric("⚖️ Ratio GC/AT", f"{gc/at:.2f}" if at > 0 else "N/A")
+        if st.button("🧬 ANALIZAR SECUENCIA", use_container_width=True, type="primary"):
+            gc, at, length = calculate_gc_content(seq)
+            composition = Counter(seq.upper())
+
+            # Estadísticas
+            st.markdown("### 📊 Estadísticas")
+            col_stats = st.columns(4)
+            with col_stats[0]: st.metric("Longitud", f"{length:,} pb")
+            with col_stats[1]: st.metric("Tipo", seq_type)
+            with col_stats[2]: st.metric("GC", f"{gc:.2%}")
+            with col_stats[3]: st.metric("Ratio GC/AT", f"{gc/at:.2f}" if at > 0 else "N/A")
+
+            # Gráfico
+            st.pyplot(plot_nucleotide_composition(seq))
+
+            # Tabla composición
+            comp_df = pd.DataFrame([{'Base': k, 'Conteo': v, '%': f"{v/length*100:.2f}%"} for k, v in sorted(composition.items())])
+            st.dataframe(comp_df, use_container_width=True, hide_index=True)
 
             # Complementaria reversa
-            st.subheader("🔄 Complementaria Reversa")
-            complementaria = (seq.replace('A', 't').replace('T', 'a')
-                            .replace('G', 'c').replace('C', 'g')
-                            .replace('U', 'a').upper()[::-1])
-            st.code(complementaria, language="")
+            st.markdown("### 🔄 Complementaria Reversa")
+            is_rna = 'U' in seq.upper()
+            rev_comp = get_reverse_complement(seq, is_rna)
+            st.code('\n'.join([rev_comp[i:i+80] for i in range(0, len(rev_comp), 80)]))
+            st.button("📋 Copiar", key="copy_revcomp")
 
-            # Traducción a proteína (simplificado)
-            codon_table = {
-                'TTT': 'F', 'TTC': 'F', 'TTA': 'L', 'TTG': 'L',
-                'TCT': 'S', 'TCC': 'S', 'TCA': 'S', 'TCG': 'S',
-                'TAT': 'Y', 'TAC': 'Y', 'TAA': '*', 'TAG': '*',
-                'TGT': 'C', 'TGC': 'C', 'TGA': '*', 'TGG': 'W',
-                'CTT': 'L', 'CTC': 'L', 'CTA': 'L', 'CTG': 'L',
-                'CCT': 'P', 'CCC': 'P', 'CCA': 'P', 'CCG': 'P',
-                'CAT': 'H', 'CAC': 'H', 'CAA': 'Q', 'CAG': 'Q',
-                'CGT': 'R', 'CGC': 'R', 'CGA': 'R', 'CGG': 'R',
-                'ATT': 'I', 'ATC': 'I', 'ATA': 'I', 'ATG': 'M',
-                'ACT': 'T', 'ACC': 'T', 'ACA': 'T', 'ACG': 'T',
-                'AAT': 'N', 'AAC': 'N', 'AAA': 'K', 'AAG': 'K',
-                'AGT': 'S', 'AGC': 'S', 'AGA': 'R', 'AGG': 'R',
-                'GTT': 'V', 'GTC': 'V', 'GTA': 'V', 'GTG': 'V',
-                'GCT': 'A', 'GCC': 'A', 'GCA': 'A', 'GCG': 'A',
-                'GAT': 'D', 'GAC': 'D', 'GAA': 'E', 'GAG': 'E',
-                'GGT': 'G', 'GGC': 'G', 'GGA': 'G', 'GGG': 'G'
-            }
+            # Traducción
+            st.markdown("### 🧪 Traducción a Proteína")
+            col_frame = st.columns([1, 2])
+            with col_frame[0]:
+                frame = st.selectbox("Marco:", [1, 2, 3], index=0, key="frame_select")
 
-            if len(seq) >= 3:
-                protein = ''
-                for i in range(0, len(seq)-len(seq)%3, 3):
-                    codon = seq[i:i+3]
-                    protein += codon_table.get(codon, 'X')
+            protein, codons = translate_sequence(seq, frame)
+            lines = [protein[i:i+60] for i in range(0, len(protein), 60)]
+            numbered = '\n'.join([f"{j*60+1:4d}  {line}" for j, line in enumerate(lines)])
+            st.code(numbered)
+            st.caption(f"Longitud: {len(protein)} aa")
 
-                st.subheader("🧪 Traducción a Proteína (frame 1)")
-                st.code(protein, language="")
+            # Tabla de codones
+            if codons:
+                codon_df = pd.DataFrame(codons, columns=['Codón', 'AA'])
+                codon_df['#'] = range(1, len(codon_df) + 1)
+                codon_df = codon_df[['#', 'Codón', 'AA']]
+                st.dataframe(codon_df, use_container_width=True, hide_index=True)
 
-# ==========================================
+            # ORFs
+            st.markdown("### 🔍 Búsqueda de ORFs")
+            col_orf = st.columns([1, 1])
+            with col_orf[0]:
+                min_len = st.number_input("Longitud mínima (pb):", 6, len(seq), 30, key="min_orf")
+            with col_orf[1]:
+                max_show = st.number_input("Máx ORFs:", 1, 50, 10, key="max_orf")
+
+            if st.button("🔍 Buscar ORFs", key="search_orfs"):
+                orfs = find_orfs(seq, min_len)
+                if orfs:
+                    st.success(f"✅ {len(orfs)} ORFs encontrados")
+                    for i, orf in enumerate(orfs[:max_show]):
+                        with st.expander(f"ORF #{i+1} - Frame +{orf['frame']} - {orf['length']} pb"):
+                            st.write(f"**Posición:** {orf['start']} - {orf['end']}")
+                            st.code(orf['sequence'][:100] + "...")
+                            st.code(orf['protein'][:50] + "...")
+                else:
+                    st.warning("No se encontraron ORFs")
+
+            # Exportar
+            st.markdown("### 💾 Exportar")
+            exp_cols = st.columns(3)
+            with exp_cols[0]:
+                st.download_button("📥 Original", data=f">{seq_type}\n{seq}", file_name="secuencia.fasta", mime="text/plain")
+            with exp_cols[1]:
+                st.download_button("📥 RevComp", data=f">RevComp\n{rev_comp}", file_name="revcomp.fasta", mime="text/plain")
+            with exp_cols[2]:
+                st.download_button("📥 Proteína", data=f">Protein\n{protein}", file_name="proteina.fasta", mime="text/plain")
+
+            # GC Skew
+            st.markdown("### 📈 Análisis GC Skew")
+            if len(seq) >= 10:
+                window = max(10, len(seq) // 100)
+                positions, skew_values = [], []
+                for i in range(0, len(seq.upper()) - window, window):
+                    w = seq.upper()[i:i+window]
+                    g, c = w.count('G'), w.count('C')
+                    skew = (g - c) / (g + c) if (g + c) > 0 else 0
+                    positions.append(i + window // 2)
+                    skew_values.append(skew)
+
+                fig, ax = plt.subplots(figsize=(12, 4))
+                ax.plot(positions, skew_values, color='#3498db', linewidth=1.5)
+                ax.axhline(y=0, color='red', linestyle='--')
+                ax.fill_between(positions, skew_values, 0, alpha=0.3, color='#3498db')
+                ax.set_xlabel('Posición'); ax.set_ylabel('GC Skew'); ax.set_title('GC Skew'); ax.grid(True, alpha=0.3)
+                plt.tight_layout()
+                st.pyplot(fig)
+
+if __name__ == "__main__":
+    st.set_page_config(page_title="Bioinformática", layout="wide")
+    render_bioinformatics_module("🧬 Bioinformática")
+    
+    # ==========================================
 # MÓDULO 16: MI SUSCRIPCIÓN (USUARIOS)
 # ==========================================
 elif menu == "💳 Mi Suscripción":
