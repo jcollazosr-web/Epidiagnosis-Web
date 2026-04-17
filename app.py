@@ -3037,7 +3037,6 @@ def render_advanced_analysis():
                      if not np.isinf(calculate_median_survival(d['times'], d['survival'])) else 'N/A',
                      'Sup Final': f"{d['survival'][-1]:.3f}"} for n, d in results.items()]
         st.dataframe(pd.DataFrame(comp_data), use_container_width=True, hide_index=True)
-
 # ==========================================
 # MÓDULO PRINCIPAL
 # ==========================================
@@ -3055,7 +3054,34 @@ def render_survival_module(menu: str):
         render_km_curve()
     with tab_km[2]: 
         render_advanced_analysis()
-        
+
+# ==========================================
+# EJECUCIÓN DE LA APLICACIÓN
+# ==========================================
+if __name__ == "__main__":
+    # 1. Configuración inicial de la página (DEBE ser el primer comando de Streamlit)
+    st.set_page_config(page_title="EpiDiagnosis Pro v6.0", layout="wide")
+    
+    # 2. Crear el menú de navegación en la barra lateral (Ajusta la lista a los módulos que tengas)
+    opcion_menu = st.sidebar.selectbox(
+        "Seleccione un módulo:",
+        [
+            "🏠 Inicio",
+            "📉 Supervivencia (KM)",
+            "🧮 Calculadora 2x2",
+            "📊 Bioestadística Avanzada"
+            # ... agrega aquí los demás nombres exactos de tus módulos
+        ]
+    )
+    
+    # 3. Llamar a las funciones de renderizado pasando la variable 'opcion_menu'
+    # Así, la función internamente decidirá si se muestra o se oculta.
+    render_survival_module(opcion_menu)
+    
+    # (Si tienes otras funciones para otros módulos, llámalas aquí igual)
+    # render_dashboard(opcion_menu)
+    # render_calculadora(opcion_menu)
+    
 # ==========================================
 # MÓDULO 13 OPTIMIZADO: CURVAS ROC
 # ==========================================
