@@ -34,7 +34,8 @@ import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
 import gspread
-from google.oauth2.service_account import credentials
+from google.oauth2.service_account 
+import credentials
 
 # ==========================================
 # OPTIMIZACIÓN 1: LAZY IMPORTS
