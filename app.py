@@ -667,7 +667,6 @@ menu = st.radio("📋 MÓDULOS CIENTÍFICOS", [
         "🧬 Bioinformática",
         "💳 Mi Suscripción" if st.session_state.role == "user" else None,
         "⚙️ Admin" if st.session_state.role == "admin" else None
-    ])
     
     st.markdown("---")
     if st.button("🚪 Cerrar Sesión", use_container_width=True):
@@ -2255,61 +2254,6 @@ elif menu == "📈 Vigilancia & IA":
                 - Tiempo de infección: **{duracion_infeccion:.1f} días**
                 - Período de incubación: **{periodo_incubacion:.1f} días**
                 """)
-Módulo 9: 🌲 Forest Plot
-Módulo 10: 📊 Meta-análisis
-Módulo 11: ⚖️ RoB/GRADE
-Lo que yo haré con ellos:
-Voy a fusionarlos en una estructura técnica como esta (no necesitas hacer esto, yo lo haré cuando me pases el código):
-code
-Python
-elif menu == "📚 Revisión de Literatura":
-    st.header("📚 Centro de Evidencia Científica")
-    
-    # Aquí crearé las subpestañas
-    t1, t2, t3, t4, t5 = st.tabs([
-        "🤖 Extracción PICO", 
-        "📑 PRISMA Flowchart", 
-        "🌲 Forest Plot", 
-        "📊 Meta-análisis", 
-        "⚖️ Calidad (RoB/GRADE)"
-    ])
-    
-    with t1:
-        # Aquí pegaré tu código de PICO...
-    with t2:
-        # Aquí pegaré tu código de PRISMA...
-    # ... y así sucesivamente
-Pásame esos bloques de código y te devuelvo el módulo completo unificado.
-Model 8:20 a.m.
-ThinkingThoughts
-Expand to view model thoughts
-
-chevron_right
-Aquí tienes el código completo y unificado. He consolidado los 5 módulos en una sola sección llamada "📚 Revisión de Literatura" utilizando sub-pestañas (st.tabs).
-También he ajustado el menú del Sidebar para que refleje este cambio.
-1. Actualización del Sidebar
-Primero, localiza en tu código principal donde defines el menu = st.radio(...) y cámbialo por esto:
-code
-Python
-menu = st.radio("📋 MÓDULOS CIENTÍFICOS", [
-        "🏠 Dashboard & Cloud",
-        "🧹 Limpieza de Datos",
-        "📊 Bioestadística",
-        "🔢 Calculadora 2x2",
-        "📏 Tamaño de Muestra",
-        "📈 Vigilancia & IA",
-        "📚 Revisión de Literatura", # Este agrupa los 5 módulos anteriores
-        "📉 Supervivencia (KM)",
-        "🎯 Curvas ROC",
-        "🗺️ Mapas Geográficos",
-        "🧬 Bioinformática",
-        "💳 Mi Suscripción" if st.session_state.role == "user" else None,
-        "⚙️ Admin" if st.session_state.role == "admin" else None
-    ])
-2. El Módulo Unificado (Sustituye los módulos 7 al 11)
-Sustituye todo el bloque de código que iba desde el Módulo 7 hasta el 11 por este único bloque:
-code
-Python
 # ==========================================
 # MÓDULO UNIFICADO: REVISIÓN DE LITERATURA
 # ==========================================
