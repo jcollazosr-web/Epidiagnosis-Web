@@ -33,6 +33,8 @@ import plotly.express as px
 import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
+import gspread
+from google.oauth2.service_account import credentials
 
 # ==========================================
 # OPTIMIZACIÓN 1: LAZY IMPORTS
@@ -551,36 +553,48 @@ if not st.session_state.auth:
                         else:
                             st.error("Usuario no registrado")
 
-    with c2:
-        with st.container():
-            st.markdown("### 📝 Registro Trial")
-            with st.form("reg"):
-                ru = st.text_input("Email", placeholder="su@email.com", key="reg_email").upper().strip()
-                rp = st.text_input("Clave", type="password", placeholder="••••••••", key="reg_pass")
-                rid = st.text_input("ID Documento", placeholder="C.C. o Passport")
+with c2:
+    with st.container():
+        st.markdown("### 📝 Registro Trial")
+        with st.form("reg"):
+            ru = st.text_input("Email", placeholder="su@email.com", key="reg_email").upper().strip()
+            rp = st.text_input("Clave", type="password", placeholder="••••••••", key="reg_pass")
+            rid = st.text_input("ID Documento", placeholder="C.C. o Passport")
+            
+            # NUEVOS CAMPOS
+            rnombre = st.text_input("Nombre", placeholder="Ej: Juan", key="reg_nombre")
+            rapellido = st.text_input("Apellido", placeholder="Ej: Pérez", key="reg_apellido")
+            rprofesion = st.selectbox(
+                "Profesión", 
+                ["Médico", "Enfermero", "Investigador", "Estudiante", "Bioestadístico", "Epidemiólogo", "Otro"],
+                key="reg_profesion"
+            )
 
-                col_reg = st.columns(2)
-                with col_reg[0]:
-                    submit_reg = st.form_submit_button("ACTIVAR PRUEBA", use_container_width=True)
+            col_reg = st.columns(2)
+            with col_reg[0]:
+                submit_reg = st.form_submit_button("ACTIVAR PRUEBA", use_container_width=True)
 
-                if submit_reg:
-                    db = load_users()
-                    exp = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
-                    if ru not in db and ru and rp and rid:
-                        db[ru] = {
-                            "password": secure_hash(rp),
-                            "role": "user",
-                            "expiry": exp,
-                            "id_doc": rid,
-                            "dob": "2000-01-01"
-                        }
-                        save_users(db)
-                        st.success("✅ Cuenta creada exitosamente. Ya puede iniciar sesión.")
-                    elif ru in db:
-                        st.warning("Este email ya está registrado.")
-                    else:
-                        st.warning("Complete todos los campos.")
-
+            if submit_reg:
+                db = load_users()
+                exp = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+                if ru not in db and ru and rp and rid and rnombre and rapellido:
+                    db[ru] = {
+                        "password": secure_hash(rp),
+                        "role": "user",
+                        "expiry": exp,
+                        "id_doc": rid,
+                        "dob": "2000-01-01",
+                        "name": rnombre,      # NUEVO
+                        "lastname": rapellido,  # NUEVO
+                        "profession": rprofesion  # NUEVO
+                    }
+                    save_users(db)
+                    st.success("✅ Cuenta creada exitosamente. Ya puede iniciar sesión.")
+                elif ru in db:
+                    st.warning("Este email ya está registrado.")
+                else:
+                    st.warning("Complete todos los campos.")
+                    
         # SECCIÓN DE PAGO
         st.markdown("---")
         st.markdown("### 💳 Acceso Premium")
