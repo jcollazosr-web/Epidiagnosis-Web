@@ -556,6 +556,7 @@ with c2:
             # NUEVOS CAMPOS
             rnombre = st.text_input("Nombre", placeholder="Ej: Juan", key="reg_nombre")
             rapellido = st.text_input("Apellido", placeholder="Ej: Pérez", key="reg_apellido")
+            rid = st.text_input("ID Documento", placeholder="C.C. o Passport")
             rprofesion = st.selectbox(
                 "Profesión", 
                 ["Médico", "Enfermero", "Investigador", "Estudiante", "Bioestadístico", "Epidemiólogo", "Otro"],
@@ -563,7 +564,6 @@ with c2:
             )
             ru = st.text_input("Email", placeholder="su@email.com", key="reg_email").upper().strip()
             rp = st.text_input("Clave", type="password", placeholder="••••••••", key="reg_pass")
-            rid = st.text_input("ID Documento", placeholder="C.C. o Passport")
             
             col_reg = st.columns(2)
             with col_reg[0]:
