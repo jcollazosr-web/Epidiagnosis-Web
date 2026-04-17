@@ -4091,9 +4091,9 @@ elif menu == "⚙️ Admin":
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: #64748b; padding: 10px;'>"
-    "🩺 EpiDiagnosis Pro v6.0 | © 2024 | Desarrollado con Streamlit | "
-    "Módulos: Dashboard, Limpieza, Bioestadística, Calculadora 2x2, Tamaño de Muestra, "
-    "Vigilancia, PICO, PRISMA, Forest Plot, Meta-análisis, RoB/GRADE, Kaplan-Meier, ROC, Mapas"
+    "🩺 EpiDiagnosis Pro v6.0 | © 2026 | Fundación Juan manuel Collazos | "
+    "Desarrollado por: Juan Manuel Collazos Rozo, MD, MSc."
+    "WhatsApp: (+57) 3113682907 - Correo electrónico: j.collazosmd@gmail.com"
     "</div>",
     unsafe_allow_html=True
 )
