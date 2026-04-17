@@ -16,25 +16,21 @@ Módulos incluidos:
 Autor: MiniMax Agent
 Versión: 6.0
 """
-importar streamlit como st
-importar pandas como pd
+import streamlit as st
+import pandas as pd
 import numpy as np
-importar json
-importar sistema operativo
-importar hashlib
-hora de importación
-importar re
-solicitudes de importación
+import json
+import os
+import hashlib
+import time
+import re
+import requests
 from datetime import datetime, timedelta
 from functools import wraps
 import plotly.graph_objects as go
 import plotly.express as px
-import plotly.express as px
-importar seaborn como sns
+import seaborn as sns
 import matplotlib.pyplot as plt
-import gspread from google.oauth2.service_account
-importar credenciales
-
 
 # ==========================================
 # OPTIMIZACIÓN 1: LAZY IMPORTS
