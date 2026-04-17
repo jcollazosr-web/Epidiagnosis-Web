@@ -551,12 +551,8 @@ if not st.session_state.auth:
 
 with c2:
     with st.container():
-        st.markdown("### 📝 Registro Trial")
+        st.markdown("### 📝 Registro prueba gratuita")
         with st.form("reg"):
-            ru = st.text_input("Email", placeholder="su@email.com", key="reg_email").upper().strip()
-            rp = st.text_input("Clave", type="password", placeholder="••••••••", key="reg_pass")
-            rid = st.text_input("ID Documento", placeholder="C.C. o Passport")
-            
             # NUEVOS CAMPOS
             rnombre = st.text_input("Nombre", placeholder="Ej: Juan", key="reg_nombre")
             rapellido = st.text_input("Apellido", placeholder="Ej: Pérez", key="reg_apellido")
@@ -565,7 +561,10 @@ with c2:
                 ["Médico", "Enfermero", "Investigador", "Estudiante", "Bioestadístico", "Epidemiólogo", "Otro"],
                 key="reg_profesion"
             )
-
+            ru = st.text_input("Email", placeholder="su@email.com", key="reg_email").upper().strip()
+            rp = st.text_input("Clave", type="password", placeholder="••••••••", key="reg_pass")
+            rid = st.text_input("ID Documento", placeholder="C.C. o Passport")
+            
             col_reg = st.columns(2)
             with col_reg[0]:
                 submit_reg = st.form_submit_button("ACTIVAR PRUEBA", use_container_width=True)
