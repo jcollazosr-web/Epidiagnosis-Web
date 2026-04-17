@@ -33,8 +33,7 @@ import plotly.express as px
 import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
-import gspread
-from google.oauth2.service_account 
+import gspread from google.oauth2.service_account 
 import credentials
 
 # ==========================================
