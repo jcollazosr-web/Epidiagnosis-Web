@@ -679,7 +679,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.info("📞 Soporte: +57 3113682907\n\n📧 soporte@epidiagnosis.com\n\n🕐 Lun-Vie: 8AM-6PM")
+    st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 Lun-Vie: 8AM-6PM")
 
 # ==========================================
 # MÓDULO 1: DASHBOARD
