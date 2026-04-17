@@ -3042,19 +3042,20 @@ def render_advanced_analysis():
 # MÓDULO PRINCIPAL
 # ==========================================
 def render_survival_module(menu: str):
+    # Si el usuario NO ha seleccionado esta opción, no dibuja nada
     if menu != "📉 Supervivencia (KM)":
         return
     
     st.header("📉 Análisis de Supervivencia - Kaplan-Meier")
     tab_km = st.tabs(["📝 Datos", "📈 Curva KM", "📊 Análisis"])
-    with tab_km[0]: render_data_input()
-    with tab_km[1]: render_km_curve()
-    with tab_km[2]: render_advanced_analysis()
-
-if __name__ == "__main__":
-    st.set_page_config(page_title="Kaplan-Meier", layout="wide")
-    render_survival_module("📉 Supervivencia (KM)")
     
+    with tab_km[0]: 
+        render_data_input()
+    with tab_km[1]: 
+        render_km_curve()
+    with tab_km[2]: 
+        render_advanced_analysis()
+        
 # ==========================================
 # MÓDULO 13 OPTIMIZADO: CURVAS ROC
 # ==========================================
