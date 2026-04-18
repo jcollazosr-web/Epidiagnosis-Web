@@ -3910,7 +3910,7 @@ def render_bioinformatics_module(menu: str):
     # ==========================================
 # MÓDULO 16: MI SUSCRIPCIÓN (USUARIOS)
 # ==========================================
-elif menu == "💳 Mi Suscripción":
+if menu == "💳 Mi Suscripción":
     st.header("💳 Gestión de Suscripción")
 
     db = load_users()
@@ -3997,7 +3997,7 @@ elif menu == "💳 Mi Suscripción":
 # ==========================================
 # MÓDULO 17: ADMIN
 # ==========================================
-elif menu == "⚙️ Admin":
+if menu == "⚙️ Admin":
     st.header("🔑 Panel de Administración")
 
     db = load_users()
