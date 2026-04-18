@@ -649,18 +649,16 @@ if not st.session_state.auth:
             </div>
         """, unsafe_allow_html=True)
 
-else:
-
 # ==========================================
 # SIDEBAR NAVEGACIÓN MEJORADA v6.0
 # ==========================================
-with st.sidebar:
-    st.markdown("<div class='sidebar-brand'>🩺 EpiDiagnosis Pro</div>", unsafe_allow_html=True)
-    st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
-    st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
-    st.write(f"📌 Versión: `6.0`")
-    st.markdown("---")
-
+else:
+    with st.sidebar:
+        st.markdown("<div class='sidebar-brand'>🩺 EpiDiagnosis Pro</div>", unsafe_allow_html=True)
+        st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
+        st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
+        st.write(f"📌 Versión: `6.0`")
+        st.markdown("---")
 # 1. Definir las opciones base
 opciones = [
     "🏠 Dashboard & Cloud",
