@@ -651,47 +651,59 @@ if not st.session_state.auth:
 
 # ==========================================
 # SIDEBAR NAVEGACIÓN MEJORADA v6.0
+# ==========================================# ==========================================
+# SIDEBAR LIMPIO Y CORRECTO
 # ==========================================
-else:
-    with st.sidebar:
-        st.markdown("<div class='sidebar-brand'>🩺 EpiDiagnosis Pro</div>", unsafe_allow_html=True)
-        st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
-        st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
-        st.write(f"📌 Versión: `6.0`")
-        st.markdown("---")
-# 1. Definir las opciones base
-opciones = [
-    "🏠 Dashboard & Cloud",
-    "🧹 Limpieza de Datos",
-    "📊 Bioestadística",
-    "🔢 Calculadora 2x2",
-    "📏 Tamaño de Muestra",
-    "📈 Vigilancia & IA",
-    "📚 Revisión de Literatura",
-    "📉 Supervivencia (KM)",
-    "🎯 Curvas ROC",
-    "🗺️ Mapas Geográficos",
-    "🧬 Bioinformática"
-]
 
-# 2. Agregar opciones condicionales (Evita que haya None en la lista)
-if st.session_state.get('role') == "user":
-    opciones.append("💳 Mi Suscripción")
-elif st.session_state.get('role') == "admin":
-    opciones.append("⚙️ Admin")
+with st.sidebar:
+    st.markdown("<div class='sidebar-brand'>🩺 EpiDiagnosis Pro</div>", unsafe_allow_html=True)
 
-# 3. Renderizar el radio menú
-menu = st.radio("📋 MÓDULOS CIENTÍFICOS", opciones)
+    st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
+    st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
+    st.write(f"📌 Versión: `6.0`")
 
-st.markdown("---")
+    st.markdown("---")
 
-# 4. Botón de salida
-if st.button("🚪 Cerrar Sesión", use_container_width=True):
-    st.session_state.auth = False
-    st.rerun()
+    # Opciones base
+    opciones = [
+        "🏠 Dashboard & Cloud",
+        "🧹 Limpieza de Datos",
+        "📊 Bioestadística",
+        "🔢 Calculadora 2x2",
+        "📏 Tamaño de Muestra",
+        "📈 Vigilancia & IA",
+        "📚 Revisión de Literatura",
+        "📉 Supervivencia (KM)",
+        "🎯 Curvas ROC",
+        "🗺️ Mapas Geográficos",
+        "🧬 Bioinformática"
+    ]
 
-st.markdown("---")
-st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 Lun-Vie: 8AM-6PM")
+    # Opciones según rol
+    role = st.session_state.get('role')
+
+    if role == "user":
+        opciones.append("💳 Mi Suscripción")
+    elif role == "admin":
+        opciones.append("⚙️ Admin")
+
+    # Menú (AHORA SÍ dentro del sidebar)
+    menu = st.radio(
+        "📋 MÓDULOS CIENTÍFICOS",
+        opciones,
+        key="main_menu"
+    )
+
+    st.markdown("---")
+
+    # Logout
+    if st.button("🚪 Cerrar Sesión", use_container_width=True, key="logout"):
+        st.session_state.auth = False
+        st.rerun()
+
+    st.markdown("---")
+
+    st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 Lun-Vie: 8AM-6PM")
 # ==========================================
 # MÓDULO 1: DASHBOARD
 # ==========================================
