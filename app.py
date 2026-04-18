@@ -511,9 +511,10 @@ def login_attempts_check(ip="default"):
 # ==========================================
 # FLUJO DE AUTENTICACIÓN MEJORADO
 # ==========================================
-if not st.session_state.auth:
-    st.title("🩺 EpiDiagnosis Pro v6.0")
-    c1, c2 = st.columns(2)  # <-- ¡ESTA LÍNEA ES IMPORTANTE!
+if not st.session_state.get("auth", False):
+    # 🔐 LOGIN
+    st.title("🔐 Iniciar Sesión")
+        c1, c2 = st.columns(2)  # <-- ¡ESTA LÍNEA ES IMPORTANTE!
 
     with c1:
         with st.container():
@@ -654,57 +655,53 @@ if not st.session_state.auth:
 # ==========================================# ==========================================
 # SIDEBAR LIMPIO Y CORRECTO
 # ==========================================
+else:
+    # ==========================================
+    # SIDEBAR (SOLO SI ESTÁ LOGUEADO)
+    # ==========================================
+    with st.sidebar:
+        st.markdown("<div class='sidebar-brand'>🩺 EpiDiagnosis Pro</div>", unsafe_allow_html=True)
 
-with st.sidebar:
-    st.markdown("<div class='sidebar-brand'>🩺 EpiDiagnosis Pro</div>", unsafe_allow_html=True)
+        st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
+        st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
+        st.write(f"📌 Versión: `6.0`")
 
-    st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
-    st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
-    st.write(f"📌 Versión: `6.0`")
+        st.markdown("---")
 
-    st.markdown("---")
+        opciones = [
+            "🏠 Dashboard & Cloud",
+            "🧹 Limpieza de Datos",
+            "📊 Bioestadística",
+            "🔢 Calculadora 2x2",
+            "📏 Tamaño de Muestra",
+            "📈 Vigilancia & IA",
+            "📚 Revisión de Literatura",
+            "📉 Supervivencia (KM)",
+            "🎯 Curvas ROC",
+            "🗺️ Mapas Geográficos",
+            "🧬 Bioinformática"
+        ]
 
-    # Opciones base
-    opciones = [
-        "🏠 Dashboard & Cloud",
-        "🧹 Limpieza de Datos",
-        "📊 Bioestadística",
-        "🔢 Calculadora 2x2",
-        "📏 Tamaño de Muestra",
-        "📈 Vigilancia & IA",
-        "📚 Revisión de Literatura",
-        "📉 Supervivencia (KM)",
-        "🎯 Curvas ROC",
-        "🗺️ Mapas Geográficos",
-        "🧬 Bioinformática"
-    ]
+        role = st.session_state.get('role')
 
-    # Opciones según rol
-    role = st.session_state.get('role')
+        if role == "user":
+            opciones.append("💳 Mi Suscripción")
+        elif role == "admin":
+            opciones.append("⚙️ Admin")
 
-    if role == "user":
-        opciones.append("💳 Mi Suscripción")
-    elif role == "admin":
-        opciones.append("⚙️ Admin")
+        menu = st.radio("📋 MÓDULOS CIENTÍFICOS", opciones, key="main_menu")
 
-    # Menú (AHORA SÍ dentro del sidebar)
-    menu = st.radio(
-        "📋 MÓDULOS CIENTÍFICOS",
-        opciones,
-        key="main_menu"
-    )
+        st.markdown("---")
 
-    st.markdown("---")
+        if st.button("🚪 Cerrar Sesión", use_container_width=True, key="logout"):
+            st.session_state.auth = False
+            st.rerun()
 
-    # Logout
-    if st.button("🚪 Cerrar Sesión", use_container_width=True, key="logout"):
-        st.session_state.auth = False
-        st.rerun()
+        st.markdown("---")
 
-    st.markdown("---")
+        st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com")
 
-    st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 Lun-Vie: 8AM-6PM")
-# ==========================================
+    # ==========================================# ==========================================
 # MÓDULO 1: DASHBOARD
 # ==========================================
 if menu == "🏠 Dashboard & Cloud":
