@@ -649,7 +649,6 @@ if not st.session_state.auth:
             </div>
         """, unsafe_allow_html=True)
 
-    st.stop()
     
 # ==========================================
 # SIDEBAR NAVEGACIÓN MEJORADA v6.0
