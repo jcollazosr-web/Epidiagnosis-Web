@@ -659,43 +659,42 @@ with st.sidebar:
     st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
     st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
     st.write(f"📌 Versión: `6.0`")
+st.markdown("---")
 
-    st.markdown("---")
+# 1. Definir las opciones base
+opciones = [
+    "🏠 Dashboard & Cloud",
+    "🧹 Limpieza de Datos",
+    "📊 Bioestadística",
+    "🔢 Calculadora 2x2",
+    "📏 Tamaño de Muestra",
+    "📈 Vigilancia & IA",
+    "📚 Revisión de Literatura",
+    "📉 Supervivencia (KM)",
+    "🎯 Curvas ROC",
+    "🗺️ Mapas Geográficos",
+    "🧬 Bioinformática"
+]
 
-    # 1. Definir las opciones base
-    opciones = [
-        "🏠 Dashboard & Cloud",
-        "🧹 Limpieza de Datos",
-        "📊 Bioestadística",
-        "🔢 Calculadora 2x2",
-        "📏 Tamaño de Muestra",
-        "📈 Vigilancia & IA",
-        "📚 Revisión de Literatura",
-        "📉 Supervivencia (KM)",
-        "🎯 Curvas ROC",
-        "🗺️ Mapas Geográficos",
-        "🧬 Bioinformática"
-    ]
+# 2. Agregar opciones condicionales (Evita que haya None en la lista)
+if st.session_state.get('role') == "user":
+    opciones.append("💳 Mi Suscripción")
+elif st.session_state.get('role') == "admin":
+    opciones.append("⚙️ Admin")
 
-    # 2. Agregar opciones condicionales (Evita que haya None en la lista)
-    if st.session_state.get('role') == "user":
-        opciones.append("💳 Mi Suscripción")
-    elif st.session_state.get('role') == "admin":
-        opciones.append("⚙️ Admin")
+# 3. Renderizar el radio menú
+menu = st.radio("📋 MÓDULOS CIENTÍFICOS", opciones)
 
-    # 3. Renderizar el radio menú
-    menu = st.radio("📋 MÓDULOS CIENTÍFICOS", opciones)
+st.markdown("---")
 
-    st.markdown("---")
-    
-    # 4. Botón de salida
-    if st.button("🚪 Cerrar Sesión", use_container_width=True):
-        st.session_state.auth = False
-        st.rerun()
+# 4. Botón de salida
+if st.button("🚪 Cerrar Sesión", use_container_width=True):
+    st.session_state.auth = False
+    st.rerun()
 
-    st.markdown("---")
-    st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 Lun-Vie: 8AM-6PM")
-    
+st.markdown("---")
+st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 Lun-Vie: 8AM-6PM")
+
 # ==========================================
 # MÓDULO 1: DASHBOARD
 # ==========================================
@@ -746,7 +745,8 @@ if menu == "🏠 Dashboard & Cloud":
         with st.expander("📊 Resumen Estadístico"):
             st.dataframe(df.describe(), use_container_width=True)
             
-            
+    st.header("📂 Conector de Datos Inteligente")
+    
     # ==========================================
 # MÓDULO 2: LIMPIEZA DE DATOS
 # ==========================================
@@ -847,7 +847,8 @@ elif menu == "🧹 Limpieza de Datos":
                     st.success(f"✅ Eliminados {len(out)} outliers")
         else:
             st.info("Seleccione una columna numérica para analizar outliers")
-            
+
+    
 # ==========================================
 # MÓDULO 3: BIOESTADÍSTICA BÁSICA
 # ==========================================
@@ -2742,6 +2743,10 @@ def render_literature_review_module(menu: str):
 # MÓDULO 12 OPTIMIZADO: ANÁLISIS DE SUPERVIVENCIA (KAPLAN-MEIER)
 # ==========================================
 
+elif menu == "📉 Supervivencia (KM)":
+    # Aquí llamamos a la función que definimos abajo
+    render_survival_module(menu)
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -3056,35 +3061,12 @@ def render_survival_module(menu: str):
         render_advanced_analysis()
 
 # ==========================================
-# EJECUCIÓN DE LA APLICACIÓN
-# ==========================================
-if __name__ == "__main__":
-    # 1. Configuración inicial de la página (DEBE ser el primer comando de Streamlit)
-    st.set_page_config(page_title="EpiDiagnosis Pro v6.0", layout="wide")
-    
-    # 2. Crear el menú de navegación en la barra lateral (Ajusta la lista a los módulos que tengas)
-    opcion_menu = st.sidebar.selectbox(
-        "Seleccione un módulo:",
-        [
-            "🏠 Inicio",
-            "📉 Supervivencia (KM)",
-            "🧮 Calculadora 2x2",
-            "📊 Bioestadística Avanzada"
-            # ... agrega aquí los demás nombres exactos de tus módulos
-        ]
-    )
-    
-    # 3. Llamar a las funciones de renderizado pasando la variable 'opcion_menu'
-    # Así, la función internamente decidirá si se muestra o se oculta.
-    render_survival_module(opcion_menu)
-    
-    # (Si tienes otras funciones para otros módulos, llámalas aquí igual)
-    # render_dashboard(opcion_menu)
-    # render_calculadora(opcion_menu)
-    
-# ==========================================
 # MÓDULO 13 OPTIMIZADO: CURVAS ROC
 # ==========================================
+
+elif menu == "🎯 Curvas ROC":
+    # Aquí llamamos a la función de ROC
+    render_roc_module(menu)
 
 import streamlit as st
 import pandas as pd
@@ -3368,6 +3350,8 @@ if __name__ == "__main__":
     # ==========================================
 # MÓDULO 14 OPTIMIZADO: MAPAS GEOGRÁFICOS
 # ==========================================
+elif menu == "🗺️ Mapas Geográficos":
+    render_geographic_maps_module(menu)
 
 import streamlit as st
 import pandas as pd
@@ -3711,6 +3695,9 @@ if __name__ == "__main__":
 # ==========================================
 # MÓDULO 15 OPTIMIZADO: BIOINFORMÁTICA
 # ==========================================
+
+elif menu == "🧬 Bioinformática":
+    render_bioinformatics_module(menu)
 
 import streamlit as st
 import pandas as pd
