@@ -2737,7 +2737,7 @@ def render_literature_review_module(menu: str):
 # MÓDULO 12 OPTIMIZADO: ANÁLISIS DE SUPERVIVENCIA (KAPLAN-MEIER)
 # ==========================================
 
-elif menu == "📉 Supervivencia (KM)":
+if menu == "📉 Supervivencia (KM)":
     # Aquí llamamos a la función que definimos abajo
     render_survival_module(menu)
 
