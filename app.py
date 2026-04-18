@@ -2291,9 +2291,7 @@ elif menu == "📈 Vigilancia & IA":
 # MÓDULO UNIFICADO OPTIMIZADO: REVISIÓN DE LITERATURA
 # ==========================================
 elif menu == "📚 Revisión de Literatura":
-# Aquí llamamos a la función que definimos abajo
-    render_survival_module(menu)
-
+    render_literature_module()
 
 # ==========================================
 # CLASE: MANEJADOR DE ESTADO CENTRALIZADO
