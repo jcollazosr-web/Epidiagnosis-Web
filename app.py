@@ -852,8 +852,8 @@ elif menu == "🧹 Limpieza de Datos":
 # ==========================================
 # MÓDULO 3: BIOESTADÍSTICA BÁSICA
 # ==========================================
-elif menu == "📊 Bioestadística":
-    st.header("📊 Rigor Bioestadístico")
+    elif menu == "📊 Bioestadística":
+        st.header("📊 Rigor Bioestadístico")
 
     if st.session_state.df_master is None:
         st.warning("⚠️ Por favor cargue datos primero en el módulo Dashboard.")
@@ -1389,9 +1389,9 @@ elif menu == "📊 Bioestadística":
 # ==========================================
 # MÓDULO 4: CALCULADORA 2x2
 # ==========================================
-elif menu == "🔢 Calculadora 2x2":
-    st.header("🔢 Calculadora de Tablas 2x2")
-    st.markdown("### Configure su tabla de contingencia")
+    elif menu == "🔢 Calculadora 2x2":
+        st.header("🔢 Calculadora de Tablas 2x2")
+        st.markdown("### Configure su tabla de contingencia")
 
     # Selector de tipo de estudio
     study_design = st.radio(
@@ -1697,8 +1697,8 @@ elif menu == "🔢 Calculadora 2x2":
 # ==========================================
 # MÓDULO 5: TAMAÑO DE MUESTRA
 # ==========================================
-elif menu == "📏 Tamaño de Muestra":
-    st.header("📏 Calculadora de Tamaño de Muestra")
+    elif menu == "📏 Tamaño de Muestra":
+        st.header("📏 Calculadora de Tamaño de Muestra")
 
     # Selector de tipo de estudio
     study_type = st.radio(
@@ -2018,8 +2018,8 @@ elif menu == "📏 Tamaño de Muestra":
 # ==========================================
 # MÓDULO 6: VIGILANCIA 6.0 (AVANZADO) - SEIR COMPLETO
 # ==========================================
-elif menu == "📈 Vigilancia & IA":
-    st.header("📈 Vigilancia Epidemiológica Avanzada v6.0 (Modelo SEIR)")
+    elif menu == "📈 Vigilancia & IA":
+        st.header("📈 Vigilancia Epidemiológica Avanzada v6.0 (Modelo SEIR)")
 
     # Info del modelo
     st.info("""
@@ -2279,9 +2279,9 @@ elif menu == "📈 Vigilancia & IA":
 # ==========================================
 # MÓDULO UNIFICADO OPTIMIZADO: REVISIÓN DE LITERATURA
 # ==========================================
-elif menu == "📚 Revisión de Literatura":
+    elif menu == "📚 Revisión de Literatura":
     # Aquí llamamos a la función que definimos abajo
-    render_survival_module(menu)
+        render_survival_module(menu)
 
 
 # ==========================================
