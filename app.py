@@ -3908,10 +3908,6 @@ def render_bioinformatics_module(menu: str):
                 plt.tight_layout()
                 st.pyplot(fig)
 
-if __name__ == "__main__":
-    st.set_page_config(page_title="Bioinformática", layout="wide")
-    render_bioinformatics_module("🧬 Bioinformática")
-    
     # ==========================================
 # MÓDULO 16: MI SUSCRIPCIÓN (USUARIOS)
 # ==========================================
