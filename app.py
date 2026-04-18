@@ -623,7 +623,7 @@ if not st.session_state.get("auth", False):
         </div>
     """, unsafe_allow_html=True)
 
-
+st.stop()
 # ==========================================
 # APP PRINCIPAL (SOLO SI ESTÁ LOGUEADO)
 # ==========================================
