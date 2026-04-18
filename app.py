@@ -750,8 +750,8 @@ if menu == "🏠 Dashboard & Cloud":
 # ==========================================
 # MÓDULO 2: LIMPIEZA DE DATOS
 # ==========================================
-elif menu == "🧹 Limpieza de Datos":
-    st.header("🧹 Refinería de Datos Pro")
+    elif menu == "🧹 Limpieza de Datos":
+        st.header("🧹 Refinería de Datos Pro")
 
     if st.session_state.df_master is None:
         st.warning("⚠️ Por favor cargue datos primero en el módulo Dashboard.")
@@ -2739,9 +2739,9 @@ def render_literature_review_module(menu: str):
 # MÓDULO 12 OPTIMIZADO: ANÁLISIS DE SUPERVIVENCIA (KAPLAN-MEIER)
 # ==========================================
 
-elif menu == "📉 Supervivencia (KM)":
+    elif menu == "📉 Supervivencia (KM)":
     # Aquí llamamos a la función que definimos abajo
-    render_survival_module(menu)
+        render_survival_module(menu)
 
 # ==========================================
 # CLASE: MANEJADOR DE ESTADO
@@ -3052,9 +3052,9 @@ def render_survival_module(menu: str):
 # MÓDULO 13 OPTIMIZADO: CURVAS ROC
 # ==========================================
 
-elif menu == "🎯 Curvas ROC":
+    elif menu == "🎯 Curvas ROC":
     # Aquí llamamos a la función de ROC
-    render_roc_module(menu)
+        render_roc_module(menu)
 
 # ==========================================
 # CLASE: MANEJADOR DE ESTADO
@@ -3331,8 +3331,8 @@ if __name__ == "__main__":
     # ==========================================
 # MÓDULO 14 OPTIMIZADO: MAPAS GEOGRÁFICOS
 # ==========================================
-elif menu == "🗺️ Mapas Geográficos":
-    render_geographic_maps_module(menu)
+    elif menu == "🗺️ Mapas Geográficos":
+        render_geographic_maps_module(menu)
 
 
 # ==========================================
@@ -3671,8 +3671,8 @@ if __name__ == "__main__":
 # MÓDULO 15 OPTIMIZADO: BIOINFORMÁTICA
 # ==========================================
 
-elif menu == "🧬 Bioinformática":
-    render_bioinformatics_module(menu)
+    elif menu == "🧬 Bioinformática":
+        render_bioinformatics_module(menu)
 
 # ==========================================
 # CONSTANTES
