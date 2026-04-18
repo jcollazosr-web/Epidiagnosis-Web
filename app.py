@@ -2747,6 +2747,7 @@ elif menu == "📉 Supervivencia (KM)":
     # Aquí llamamos a la función que definimos abajo
     render_survival_module(menu)
 
+
 import streamlit as st
 import pandas as pd
 import numpy as np
