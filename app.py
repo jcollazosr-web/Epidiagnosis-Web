@@ -747,7 +747,7 @@ if menu == "🏠 Dashboard & Cloud":
             
     st.header("📂 Conector de Datos Inteligente")
     
-     # ==========================================
+# ==========================================
 # MÓDULO 2: LIMPIEZA DE DATOS
 # ==========================================
 elif menu == "🧹 Limpieza de Datos":
@@ -2279,6 +2279,9 @@ elif menu == "📈 Vigilancia & IA":
 # ==========================================
 # MÓDULO UNIFICADO OPTIMIZADO: REVISIÓN DE LITERATURA
 # ==========================================
+elif menu == "📚 Revisión de Literatura":
+    # Aquí llamamos a la función que definimos abajo
+    render_survival_module(menu)
 
 
 # ==========================================
