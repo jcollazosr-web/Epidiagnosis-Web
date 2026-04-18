@@ -3329,8 +3329,8 @@ if __name__ == "__main__":
     # ==========================================
 # MÓDULO 14 OPTIMIZADO: MAPAS GEOGRÁFICOS
 # ==========================================
-    elif menu == "🗺️ Mapas Geográficos":
-        render_geographic_maps_module(menu)
+elif menu == "🗺️ Mapas Geográficos":
+     render_geographic_maps_module(menu)
 
 
 # ==========================================
