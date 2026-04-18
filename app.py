@@ -747,7 +747,7 @@ if menu == "🏠 Dashboard & Cloud":
             
     st.header("📂 Conector de Datos Inteligente")
     
-    # ==========================================
+     # ==========================================
 # MÓDULO 2: LIMPIEZA DE DATOS
 # ==========================================
 elif menu == "🧹 Limpieza de Datos":
