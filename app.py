@@ -1,21 +1,4 @@
-""
-EpiDiagnosis Pro v6.0 - Aplicación Completa de Epidemiología y Bioestadística
-================================================================================
-Módulos incluidos:
-1. Dashboard & Cloud (módulos existentes v5.2)
-2. Calculadora 2x2 y Tamaño  Muestra
-3. Bioestadística Avanzada (4 tabs)
-4. PRISMA Flowchart
-5. Forest Plot
-6. Meta-análisis
-7. Evaluación RoB/GRADE
-8. Análisis de Supervivencia (Kaplan-Meier)
-9. Curvas ROC
-10. Mapas Geográficos
 
-Autor: MiniMax Agent
-Versión: 6.0
-"""
 #-
 import streamlit as st
 import pandas as pd
