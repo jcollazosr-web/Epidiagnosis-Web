@@ -1653,62 +1653,6 @@ else:
     elif menu == "📏 Tamaño de Muestra":
         render_sample_size_module()
 
-    elif menu == "📈 Vigilancia & IA":
-        render_ai_module()
-
-    elif menu == "📚 Revisión de Literatura":
-        render_literature_module()
-
-    elif menu == "📉 Supervivencia (KM)":
-        render_survival_module()
-
-    elif menu == "🎯 Curvas ROC":
-        render_roc_module()
-
-    elif menu == "🗺️ Mapas Geográficos":
-        render_geographic_maps_module()
-
-    elif menu == "🧬 Bioinformática":
-        render_bioinformatics_module()
-
-    elif menu == "💳 Mi Suscripción":
-        render_subscription_module()
-
-    elif menu == "⚙️ Admin":
-        render_admin_module()
-        
-    # ==========================================# ==========================================
-# MÓDULO 1: DASHBOARD
-# ==========================================
-if menu == "🏠 Dashboard & Cloud":
-    st.header("📂 Conector de Datos Inteligente")
-# ==========================================
-# MÓDULO 2: LIMPIEZA DE DATOS
-# ==========================================
-elif menu == "🧹 Limpieza de Datos":
-    st.header("🧹 Refinería de Datos Pro")
-
-
-    
-# ==========================================
-# MÓDULO 3: BIOESTADÍSTICA BÁSICA
-# ==========================================
-elif menu == "📊 Bioestadística":
-    st.header("📊 Rigor Bioestadístico")
-
-                
-# ==========================================
-# MÓDULO 4: CALCULADORA 2x2
-# ==========================================
-elif menu == "🔢 Calculadora 2x2":
-    st.header("🔢 Calculadora de Tablas 2x2")
-    st.markdown("### Configure su tabla de contingencia")
-
-# ==========================================
-# MÓDULO 5: TAMAÑO DE MUESTRA
-# ==========================================
-elif menu == "📏 Tamaño de Muestra":
-    st.header("📏 Calculadora de Tamaño de Muestra")
 
     # Selector de tipo de estudio
     study_type = st.radio(
@@ -2025,13 +1969,10 @@ elif menu == "📏 Tamaño de Muestra":
                     st.metric(f"+{pct*100:.0f}% pérdida", f"N = {adj_total:,}")
                     st.caption(f"n1={adj_n1:,}, n2={adj_n2:,}")
     
-# ==========================================
-# MÓDULO 6: VIGILANCIA 6.0 (AVANZADO) - SEIR COMPLETO
-# ==========================================
-elif menu == "📈 Vigilancia & IA":
-    st.header("📈 Vigilancia Epidemiológica Avanzada v6.0 (Modelo SEIR)")
+    elif menu == "📈 Vigilancia & IA":
+        render_ai_module()
 
-    # Info del modelo
+# Info del modelo
     st.info("""
     **Modelo SEIR Completo:**
     - **S** (Susceptibles): Población en riesgo de infectarse
@@ -2285,6 +2226,67 @@ elif menu == "📈 Vigilancia & IA":
                 - Tiempo de infección: **{duracion_infeccion:.1f} días**
                 - Período de incubación: **{periodo_incubacion:.1f} días**
                 """)
+    
+    elif menu == "📚 Revisión de Literatura":
+        render_literature_module()
+
+    elif menu == "📉 Supervivencia (KM)":
+        render_survival_module()
+
+    elif menu == "🎯 Curvas ROC":
+        render_roc_module()
+
+    elif menu == "🗺️ Mapas Geográficos":
+        render_geographic_maps_module()
+
+    elif menu == "🧬 Bioinformática":
+        render_bioinformatics_module()
+
+    elif menu == "💳 Mi Suscripción":
+        render_subscription_module()
+
+    elif menu == "⚙️ Admin":
+        render_admin_module()
+        
+    # ==========================================# ==========================================
+# MÓDULO 1: DASHBOARD
+# ==========================================
+if menu == "🏠 Dashboard & Cloud":
+    st.header("📂 Conector de Datos Inteligente")
+# ==========================================
+# MÓDULO 2: LIMPIEZA DE DATOS
+# ==========================================
+elif menu == "🧹 Limpieza de Datos":
+    st.header("🧹 Refinería de Datos Pro")
+
+
+    
+# ==========================================
+# MÓDULO 3: BIOESTADÍSTICA BÁSICA
+# ==========================================
+elif menu == "📊 Bioestadística":
+    st.header("📊 Rigor Bioestadístico")
+
+                
+# ==========================================
+# MÓDULO 4: CALCULADORA 2x2
+# ==========================================
+elif menu == "🔢 Calculadora 2x2":
+    st.header("🔢 Calculadora de Tablas 2x2")
+    st.markdown("### Configure su tabla de contingencia")
+
+# ==========================================
+# MÓDULO 5: TAMAÑO DE MUESTRA
+# ==========================================
+elif menu == "📏 Tamaño de Muestra":
+    st.header("📏 Calculadora de Tamaño de Muestra")
+
+# ==========================================
+# MÓDULO 6: VIGILANCIA 6.0 (AVANZADO) - SEIR COMPLETO
+# ==========================================
+elif menu == "📈 Vigilancia & IA":
+    st.header("📈 Vigilancia Epidemiológica Avanzada v6.0 (Modelo SEIR)")
+
                 
 # ==========================================
 # MÓDULO UNIFICADO OPTIMIZADO: REVISIÓN DE LITERATURA
