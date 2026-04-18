@@ -654,12 +654,12 @@ else:
 # ==========================================
 # SIDEBAR NAVEGACIÓN MEJORADA v6.0
 # ==========================================
-with st.sidebar:
+    with st.sidebar:
     st.markdown("<div class='sidebar-brand'>🩺 EpiDiagnosis Pro</div>", unsafe_allow_html=True)
     st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
     st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
     st.write(f"📌 Versión: `6.0`")
-st.markdown("---")
+    st.markdown("---")
 
 # 1. Definir las opciones base
 opciones = [
@@ -697,11 +697,11 @@ st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 L
 
 # ==========================================
 # MÓDULO 1: DASHBOARD
-    # ==========================================
+# ==========================================
 if menu == "🏠 Dashboard & Cloud":
     st.header("📂 Conector de Datos Inteligente")
 
-        with st.expander("ℹ️ Instrucciones", expanded=False):
+     with st.expander("ℹ️ Instrucciones", expanded=False):
         st.markdown("""
             1. Copie el enlace público de su Google Sheets, Excel Online o archivo CSV
             2. Pegue el enlace en el campo de abajo
