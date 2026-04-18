@@ -57,8 +57,12 @@ def get_analysis_imports():
 # ==========================================
 # CONFIGURACIÓN VISUAL Y CSS PRO
 # ==========================================
-st.set_page_config(page_title="EpiDiagnosis Pro V6.0", layout="wide", page_icon="🧬")
-
+st.set_page_config(
+    page_title="EpiDiagnosis Pro V6.0", 
+    layout="wide", 
+    page_icon="🧬",
+    initial_sidebar_state="collapsed"  # Esto intenta cerrarlo por defecto
+)
 st.markdown("""
     <style>
     :root {
@@ -507,7 +511,9 @@ def login_attempts_check(ip="default"):
     """Verificar intentos de login"""
     if not rate_limiter.is_allowed(f"login_{ip}"):
         return False, "Demasiados intentos. Espere 60 segundos."
-    return True, ""# ==========================================
+    return True, ""
+    
+# ==========================================
 # CONFIGURACIÓN INICIAL (DEBE SER LO PRIMERO)
 # ==========================================
 st.set_page_config(
