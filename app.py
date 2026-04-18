@@ -697,7 +697,7 @@ st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 L
 # ==========================================
 # MÓDULO 1: DASHBOARD
 # ==========================================
-    if menu == "🏠 Dashboard & Cloud":
+if menu == "🏠 Dashboard & Cloud":
         st.header("📂 Conector de Datos Inteligente")
 
     with st.expander("ℹ️ Instrucciones", expanded=False):
