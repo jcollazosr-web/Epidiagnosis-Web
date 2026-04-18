@@ -509,162 +509,122 @@ def login_attempts_check(ip="default"):
         return False, "Demasiados intentos. Espere 60 segundos."
     return True, ""
 # ==========================================
-# FLUJO DE AUTENTICACIÓN MEJORADO
+# OCULTAR SIDEBAR SI NO ESTÁ AUTENTICADO
 # ==========================================
 if not st.session_state.get("auth", False):
-    # 🔐 LOGIN
-    st.title("🔐 Iniciar Sesión")
-        c1, c2 = st.columns(2)  # <-- ¡ESTA LÍNEA ES IMPORTANTE!
+    st.markdown("""
+        <style>
+            [data-testid="stSidebar"] {display: none;}
+        </style>
+    """, unsafe_allow_html=True)
 
-    with c1:
-        with st.container():
-            st.markdown("### 🔐 Acceso al Sistema")
-            with st.form("login"):
-                u = st.text_input("Email", placeholder="su@email.com").upper().strip()
-                p = st.text_input("Clave", type="password", placeholder="••••••••")
-
-                col_login = st.columns(2)
-                with col_login[0]:
-                    submit_login = st.form_submit_button("ENTRAR", use_container_width=True)
-
-                if submit_login:
-                    allowed, msg = login_attempts_check()
-                    if not allowed:
-                        st.error(msg)
-                    else:
-                        db = load_users()
-                        if u in db:
-                            if db[u]["password"] == secure_hash(p):
-                                expiry = datetime.strptime(db[u]["expiry"], "%Y-%m-%d")
-                                if expiry > datetime.now():
-                                    st.session_state.auth = True
-                                    st.session_state.user = u
-                                    st.session_state.role = db[u]["role"]
-                                    st.session_state.user_logins[u] = datetime.now().isoformat()
-                                    st.rerun()
-                                else:
-                                    st.error("Su licencia ha expirado. Por favor renueve.")
-                            else:
-                                st.error("Credenciales incorrectas")
-                        else:
-                            st.error("Usuario no registrado")
-
-    with c2:
-        with st.container():
-            st.markdown("### 📝 Registro Trial")
-            with st.form("reg"):
-                ru = st.text_input("Email", placeholder="su@email.com", key="reg_email").upper().strip()
-                rp = st.text_input("Clave", type="password", placeholder="••••••••", key="reg_pass")
-                rid = st.text_input("ID Documento", placeholder="C.C. o Passport")
-                
-                # NUEVOS CAMPOS
-                rnombre = st.text_input("Nombre", placeholder="Ej: Juan", key="reg_nombre")
-                rapellido = st.text_input("Apellido", placeholder="Ej: Pérez", key="reg_apellido")
-                rprofesion = st.selectbox(
-                    "Profesión", 
-                    ["Médico", "Enfermero/a", "Investigador", "Estudiante", "Bioestadístico", "Epidemiólogo", "Otro"],
-                    key="reg_profesion"
-                )
-
-                col_reg = st.columns(2)
-                with col_reg[0]:
-                    submit_reg = st.form_submit_button("ACTIVAR PRUEBA", use_container_width=True)
-
-                if submit_reg:
-                    db = load_users()
-                    exp = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
-                    if ru not in db and ru and rp and rid and rnombre and rapellido:
-                        db[ru] = {
-                            "password": secure_hash(rp),
-                            "role": "user",
-                            "expiry": exp,
-                            "id_doc": rid,
-                            "dob": "2000-01-01",
-                            "name": rnombre,
-                            "lastname": rapellido,
-                            "profession": rprofesion
-                        }
-                        save_users(db)
-                        st.success("✅ Cuenta creada exitosamente. Ya puede iniciar sesión.")
-                    elif ru in db:
-                        st.warning("Este email ya está registrado.")
-                    else:
-                        st.warning("Complete todos los campos.")
-
-        # SECCIÓN DE PAGO
-        st.markdown("---")
-        st.markdown("### 💳 Acceso Premium")
-
-        col_pay1, col_pay2 = st.columns([1, 2])
-        with col_pay1:
-            st.markdown("""
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 15px; text-align: center;">
-                    <h4 style="color: white; margin-bottom: 10px;">✨ EpiDiagnosis Pro</h4>
-                    <p style="color: #f0f0f0; font-size: 14px;">
-                        Licencia mensual<br>
-                        <span style="font-size: 28px; font-weight: bold; color: #ffd700;">23 US$</span>
-                    </p>
-                </div>
-            """, unsafe_allow_html=True)
-
-        with col_pay2:
-            st.markdown("""
-                <div style="padding: 15px; background: #1e293b; border-radius: 10px;">
-                    <h5 style="color: #60a5fa; margin-bottom: 10px;">🎁 Beneficios Premium:</h5>
-                    <ul style="color: #cbd5e1; font-size: 14px; line-height: 1.8;">
-                        <li>✓ Análisis PICO con IA avanzada</li>
-                        <li>✓ Predicciones epidemiológicas</li>
-                        <li>✓ Monte Carlo Simulations</li>
-                        <li>✓ Meta-análisis completo</li>
-                        <li>✓ RoB/GRADE evaluación</li>
-                        <li>✓ Análisis de supervivencia</li>
-                        <li>✓ Curvas ROC</li>
-                        <li>✓ Mapas geográficos</li>
-                    </ul>
-                </div>
-            """, unsafe_allow_html=True)
-
-        PAYMENT_LINK = "https://checkout.bold.co/payment/LNK_2W3K24BLVU"
-
-        st.markdown(f"""
-            <div style="text-align: center; margin-top: 20px;">
-                <a href="{PAYMENT_LINK}" target="_blank" style="text-decoration: none;">
-                    <button style="
-                        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-                        color: white;
-                        padding: 18px 40px;
-                        border-radius: 12px;
-                        font-size: 18px;
-                        font-weight: bold;
-                        border: none;
-                        cursor: pointer;
-                        transition: all 0.3s;
-                        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
-                    ">
-                        🔒 PAGAR SEGURO CON BOLD.CO
-                    </button>
-                </a>
-                <p style="color: #94a3b8; font-size: 12px; margin-top: 10px;">
-                    🔒 Pago 100% seguro | Aceptamos tarjetas, PSE, Nequi, Daviplata
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
 
 # ==========================================
-# SIDEBAR NAVEGACIÓN MEJORADA v6.0
-# ==========================================# ==========================================
-# SIDEBAR LIMPIO Y CORRECTO
+# LOGIN / REGISTRO
+# ==========================================
+if not st.session_state.get("auth", False):
+
+    st.title("🔐 Iniciar Sesión")
+
+    c1, c2 = st.columns(2)  # ✅ FIX
+
+    # ================= LOGIN =================
+    with c1:
+        st.markdown("### 🔐 Acceso al Sistema")
+
+        with st.form("login"):
+            u = st.text_input("Email").upper().strip()
+            p = st.text_input("Clave", type="password")
+
+            submit_login = st.form_submit_button("ENTRAR", use_container_width=True)
+
+            if submit_login:
+                allowed, msg = login_attempts_check()
+
+                if not allowed:
+                    st.error(msg)
+                else:
+                    db = load_users()
+
+                    if u in db and db[u]["password"] == secure_hash(p):
+                        expiry = datetime.strptime(db[u]["expiry"], "%Y-%m-%d")
+
+                        if expiry > datetime.now():
+                            st.session_state.auth = True
+                            st.session_state.user = u
+                            st.session_state.role = db[u]["role"]
+                            st.rerun()
+                        else:
+                            st.error("Licencia expirada")
+                    else:
+                        st.error("Credenciales incorrectas")
+
+    # ================= REGISTRO =================
+    with c2:
+        st.markdown("### 📝 Registro Trial")
+
+        with st.form("reg"):
+            ru = st.text_input("Email", key="reg_email").upper().strip()
+            rp = st.text_input("Clave", type="password", key="reg_pass")
+            rid = st.text_input("ID Documento")
+
+            rnombre = st.text_input("Nombre", key="reg_nombre")
+            rapellido = st.text_input("Apellido", key="reg_apellido")
+            rprofesion = st.selectbox(
+                "Profesión",
+                ["Médico", "Enfermero/a", "Investigador", "Estudiante", "Bioestadístico", "Epidemiólogo", "Otro"]
+            )
+
+            submit_reg = st.form_submit_button("ACTIVAR PRUEBA", use_container_width=True)
+
+            if submit_reg:
+                db = load_users()
+                exp = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+
+                if ru and rp and rid and rnombre and rapellido and ru not in db:
+                    db[ru] = {
+                        "password": secure_hash(rp),
+                        "role": "user",
+                        "expiry": exp,
+                        "id_doc": rid,
+                        "name": rnombre,
+                        "lastname": rapellido,
+                        "profession": rprofesion
+                    }
+                    save_users(db)
+                    st.success("✅ Cuenta creada")
+                elif ru in db:
+                    st.warning("Email ya registrado")
+                else:
+                    st.warning("Complete todos los campos")
+
+    # ================= PAGO =================
+    st.markdown("---")
+
+    PAYMENT_LINK = "https://checkout.bold.co/payment/LNK_2W3K24BLVU"
+
+    st.markdown(f"""
+        <div style="text-align:center;">
+            <a href="{PAYMENT_LINK}" target="_blank">
+                <button style="padding:15px 30px; font-size:16px;">
+                    🔒 PAGAR CON BOLD
+                </button>
+            </a>
+        </div>
+    """, unsafe_allow_html=True)
+
+
+# ==========================================
+# APP PRINCIPAL (LOGUEADO)
 # ==========================================
 else:
-    # ==========================================
-    # SIDEBAR (SOLO SI ESTÁ LOGUEADO)
-    # ==========================================
-    with st.sidebar:
-        st.markdown("<div class='sidebar-brand'>🩺 EpiDiagnosis Pro</div>", unsafe_allow_html=True)
 
-        st.write(f"👤 **{st.session_state.get('user', 'Usuario')}**")
-        st.write(f"🎫 Rol: `{st.session_state.get('role', 'guest').upper()}`")
-        st.write(f"📌 Versión: `6.0`")
+    # ================= SIDEBAR =================
+    with st.sidebar:
+        st.markdown("🩺 **EpiDiagnosis Pro**")
+
+        st.write(f"👤 {st.session_state.get('user')}")
+        st.write(f"🎫 {st.session_state.get('role').upper()}")
 
         st.markdown("---")
 
@@ -682,7 +642,7 @@ else:
             "🧬 Bioinformática"
         ]
 
-        role = st.session_state.get('role')
+        role = st.session_state.get("role")
 
         if role == "user":
             opciones.append("💳 Mi Suscripción")
@@ -693,19 +653,17 @@ else:
 
         st.markdown("---")
 
-        if st.button("🚪 Cerrar Sesión", use_container_width=True, key="logout"):
+        if st.button("🚪 Cerrar Sesión"):
             st.session_state.auth = False
             st.rerun()
 
         st.markdown("---")
 
-        st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com")
+        st.info("📞 Soporte: (+57) 3113682907\n📧 j.collazosmd@gmail.com")
 
-    # ==========================================# ==========================================
-# MÓDULO 1: DASHBOARD
-# ==========================================
-if menu == "🏠 Dashboard & Cloud":
-    st.header("📂 Conector de Datos Inteligente")
+    # ================= ROUTING =================
+    if menu == "🏠 Dashboard & Cloud":
+        render_dashboard()
 
     with st.expander("ℹ️ Instrucciones", expanded=False):
         st.markdown("""
@@ -755,11 +713,9 @@ if menu == "🏠 Dashboard & Cloud":
 
         with st.expander("📊 Resumen Estadístico"):
             st.dataframe(df.describe(), use_container_width=True)
-# ==========================================
-# MÓDULO 2: LIMPIEZA DE DATOS
-# ==========================================
-elif menu == "🧹 Limpieza de Datos":
-    st.header("🧹 Refinería de Datos Pro")
+
+    elif menu == "🧹 Limpieza de Datos":
+        render_cleaning_module()
 
     if st.session_state.df_master is None:
         st.warning("⚠️ Por favor cargue datos primero en el módulo Dashboard.")
@@ -856,13 +812,8 @@ elif menu == "🧹 Limpieza de Datos":
         else:
             st.info("Seleccione una columna numérica para analizar outliers")
 
-    
-# ==========================================
-# MÓDULO 3: BIOESTADÍSTICA BÁSICA
-# ==========================================
-elif menu == "📊 Bioestadística":
-    st.header("📊 Rigor Bioestadístico")
-
+    elif menu == "📊 Bioestadística":
+        render_biostats_module()
     if st.session_state.df_master is None:
         st.warning("⚠️ Por favor cargue datos primero en el módulo Dashboard.")
         st.stop()
@@ -1393,13 +1344,10 @@ elif menu == "📊 Bioestadística":
                 """)
             else:
                 st.info(f"No se encontró correlación estadísticamente significativa (p = {p_pearson:.4f})")
-                
-# ==========================================
-# MÓDULO 4: CALCULADORA 2x2
-# ==========================================
-elif menu == "🔢 Calculadora 2x2":
-    st.header("🔢 Calculadora de Tablas 2x2")
-    st.markdown("### Configure su tabla de contingencia")
+
+    elif menu == "🔢 Calculadora 2x2":
+        render_2x2_module()
+
 
     # Selector de tipo de estudio
     study_design = st.radio(
@@ -1701,6 +1649,60 @@ elif menu == "🔢 Calculadora 2x2":
             | **NNT** | Personas a tratar para evitar 1 evento |
             | **p-value** | <0.05 indica significancia estadística |
             """)
+
+    elif menu == "📏 Tamaño de Muestra":
+        render_sample_size_module()
+
+    elif menu == "📈 Vigilancia & IA":
+        render_ai_module()
+
+    elif menu == "📚 Revisión de Literatura":
+        render_literature_module()
+
+    elif menu == "📉 Supervivencia (KM)":
+        render_survival_module()
+
+    elif menu == "🎯 Curvas ROC":
+        render_roc_module()
+
+    elif menu == "🗺️ Mapas Geográficos":
+        render_geographic_maps_module()
+
+    elif menu == "🧬 Bioinformática":
+        render_bioinformatics_module()
+
+    elif menu == "💳 Mi Suscripción":
+        render_subscription_module()
+
+    elif menu == "⚙️ Admin":
+        render_admin_module()
+        
+    # ==========================================# ==========================================
+# MÓDULO 1: DASHBOARD
+# ==========================================
+if menu == "🏠 Dashboard & Cloud":
+    st.header("📂 Conector de Datos Inteligente")
+# ==========================================
+# MÓDULO 2: LIMPIEZA DE DATOS
+# ==========================================
+elif menu == "🧹 Limpieza de Datos":
+    st.header("🧹 Refinería de Datos Pro")
+
+
+    
+# ==========================================
+# MÓDULO 3: BIOESTADÍSTICA BÁSICA
+# ==========================================
+elif menu == "📊 Bioestadística":
+    st.header("📊 Rigor Bioestadístico")
+
+                
+# ==========================================
+# MÓDULO 4: CALCULADORA 2x2
+# ==========================================
+elif menu == "🔢 Calculadora 2x2":
+    st.header("🔢 Calculadora de Tablas 2x2")
+    st.markdown("### Configure su tabla de contingencia")
 
 # ==========================================
 # MÓDULO 5: TAMAÑO DE MUESTRA
