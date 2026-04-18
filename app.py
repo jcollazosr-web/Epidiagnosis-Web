@@ -3050,9 +3050,9 @@ def render_survival_module(menu: str):
 # MÓDULO 13 OPTIMIZADO: CURVAS ROC
 # ==========================================
 
-elif menu == "🎯 Curvas ROC":
+if menu == "🎯 Curvas ROC":
     # Aquí llamamos a la función de ROC
-            render_roc_module(menu)
+    render_roc_module(menu)
 
 # ==========================================
 # CLASE: MANEJADOR DE ESTADO
