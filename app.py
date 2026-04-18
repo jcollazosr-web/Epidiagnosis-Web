@@ -518,13 +518,12 @@ if not st.session_state.get("auth", False):
         </style>
     """, unsafe_allow_html=True)
 
-
 # ==========================================
 # LOGIN / REGISTRO
 # ==========================================
 if not st.session_state.get("auth", False):
 
-    # 🔥 OCULTAR SIDEBAR SOLO VISUAL (extra seguridad)
+    # 🔥 OCULTAR SIDEBAR SOLO VISUAL
     st.markdown("""
         <style>
             section[data-testid="stSidebar"] {
@@ -569,6 +568,9 @@ if not st.session_state.get("auth", False):
                     else:
                         st.error("Credenciales incorrectas")
 
+    # 🚨 ESTA LÍNEA SOLUCIONA TODO
+    st.stop()
+    
     # ================= REGISTRO =================
     with c2:
         st.markdown("### 📝 Registro Trial")
