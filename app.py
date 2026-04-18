@@ -700,7 +700,7 @@ st.info("📞 Soporte: (+57) 3113682907\n\n📧 j.collazosmd@gmail.com\n\n🕐 L
     if menu == "🏠 Dashboard & Cloud":
         st.header("📂 Conector de Datos Inteligente")
 
-    with st.expander("ℹ️ Instrucciones", expanded=False):
+        with st.expander("ℹ️ Instrucciones", expanded=False):
         st.markdown("""
             1. Copie el enlace público de su Google Sheets, Excel Online o archivo CSV
             2. Pegue el enlace en el campo de abajo
