@@ -523,7 +523,8 @@ if not st.session_state.get("auth", False):
 # LOGIN / REGISTRO
 # ==========================================
 if not st.session_state.get("auth", False):
-    # 🔥 OCULTAR SIDEBAR COMPLETAMENTE
+
+    # 🔥 OCULTAR SIDEBAR SOLO VISUAL (extra seguridad)
     st.markdown("""
         <style>
             section[data-testid="stSidebar"] {
@@ -536,6 +537,7 @@ if not st.session_state.get("auth", False):
     st.title("🔐 Iniciar Sesión")
 
     c1, c2 = st.columns(2)
+
     # ================= LOGIN =================
     with c1:
         st.markdown("### 🔐 Acceso al Sistema")
@@ -623,11 +625,11 @@ if not st.session_state.get("auth", False):
 
 
 # ==========================================
-# APP PRINCIPAL (LOGUEADO)
+# APP PRINCIPAL (SOLO SI ESTÁ LOGUEADO)
 # ==========================================
-else:
+if st.session_state.get("auth", False):
 
-    # ================= SIDEBAR =================
+    # 🔥 MOSTRAR SIDEBAR SOLO AQUÍ
     with st.sidebar:
         st.markdown("🩺 **EpiDiagnosis Pro**")
 
@@ -657,7 +659,7 @@ else:
         elif role == "admin":
             opciones.append("⚙️ Admin")
 
-        menu = st.radio("📋 MÓDULOS CIENTÍFICOS", opciones, key="main_menu")
+        menu = st.radio("📋 MÓDULOS CIENTÍFICOS", opciones)
 
         st.markdown("---")
 
@@ -668,7 +670,7 @@ else:
         st.markdown("---")
 
         st.info("📞 Soporte: (+57) 3113682907\n📧 j.collazosmd@gmail.com")
-
+        
     # ================= ROUTING =================
     if menu == "🏠 Dashboard & Cloud":
         render_dashboard()
