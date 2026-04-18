@@ -2280,13 +2280,6 @@ elif menu == "📈 Vigilancia & IA":
 # MÓDULO UNIFICADO OPTIMIZADO: REVISIÓN DE LITERATURA
 # ==========================================
 
-import streamlit as st
-import pandas as pd
-import json
-import plotly.graph_objects as go
-import matplotlib.pyplot as plt
-import numpy as np
-from typing import Optional, Dict, List, Any
 
 # ==========================================
 # CLASE: MANEJADOR DE ESTADO CENTRALIZADO
@@ -2747,15 +2740,6 @@ elif menu == "📉 Supervivencia (KM)":
     # Aquí llamamos a la función que definimos abajo
     render_survival_module(menu)
 
-
-import streamlit as st
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from typing import Dict, List, Optional
-import warnings
-warnings.filterwarnings('ignore')
-
 # ==========================================
 # CLASE: MANEJADOR DE ESTADO
 # ==========================================
@@ -3069,13 +3053,6 @@ elif menu == "🎯 Curvas ROC":
     # Aquí llamamos a la función de ROC
     render_roc_module(menu)
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, auc, confusion_matrix, precision_recall_curve, average_precision_score
-from typing import Dict, List, Optional
-
 # ==========================================
 # CLASE: MANEJADOR DE ESTADO
 # ==========================================
@@ -3354,12 +3331,6 @@ if __name__ == "__main__":
 elif menu == "🗺️ Mapas Geográficos":
     render_geographic_maps_module(menu)
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
-from typing import Dict, List, Optional, Tuple
-from functools import lru_cache
 
 # ==========================================
 # CLASE: MANEJADOR DE ESTADO CENTRALIZADO
@@ -3699,14 +3670,6 @@ if __name__ == "__main__":
 
 elif menu == "🧬 Bioinformática":
     render_bioinformatics_module(menu)
-
-import streamlit as st
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from collections import Counter
-from typing import Dict, List, Tuple
-import io
 
 # ==========================================
 # CONSTANTES
