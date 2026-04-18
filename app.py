@@ -514,16 +514,16 @@ def login_attempts_check(ip="default"):
     return True, ""
     
 # ==========================================
-# CONFIGURACIÓN INICIAL (DEBE SER LO PRIMERO)
+# 1. CONFIGURACIÓN INICIAL
 # ==========================================
 st.set_page_config(
     page_title="EpiDiagnosis Pro V6.0",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # ==========================================
-# GESTIÓN DE INTERFAZ (SIDEBAR)
+# 2. GESTIÓN DE INTERFAZ (SIDEBAR)
 # ==========================================
 if not st.session_state.get("auth", False):
     # Ocultar sidebar completamente si no está logueado
@@ -536,7 +536,7 @@ if not st.session_state.get("auth", False):
     """, unsafe_allow_html=True)
 
 # ==========================================
-# LOGIN / REGISTRO / PAGO
+# 3. LOGIN / REGISTRO / PAGO
 # ==========================================
 if not st.session_state.get("auth", False):
     st.title("🔐 Acceso a EpiDiagnosis Pro")
@@ -546,7 +546,7 @@ if not st.session_state.get("auth", False):
     # ================= COLUMNA 1: LOGIN =================
     with c1:
         st.markdown("### 🔑 Iniciar Sesión")
-        with st.form("login"):
+        with st.form("login_form"):
             u = st.text_input("Email").upper().strip()
             p = st.text_input("Clave", type="password")
             submit_login = st.form_submit_button("ENTRAR", use_container_width=True)
@@ -572,7 +572,7 @@ if not st.session_state.get("auth", False):
     # ================= COLUMNA 2: REGISTRO =================
     with c2:
         st.markdown("### 📝 Registro Trial (3 días)")
-        with st.form("reg"):
+        with st.form("register_form"):
             ru = st.text_input("Email", key="reg_email").upper().strip()
             rp = st.text_input("Clave", type="password", key="reg_pass")
             rid = st.text_input("ID Documento")
@@ -580,7 +580,8 @@ if not st.session_state.get("auth", False):
             rapellido = st.text_input("Apellido", key="reg_apellido")
             rprofesion = st.selectbox(
                 "Profesión",
-                ["Médico", "Enfermero/a", "Investigador", "Estudiante", "Bioestadístico", "Epidemiólogo", "Otro"]
+                ["Médico", "Enfermero/a", "Investigador", "Estudiante", "Bioestadístico", "Epidemiólogo", "Otro"],
+                key="reg_prof"
             )
             submit_reg = st.form_submit_button("ACTIVAR PRUEBA", use_container_width=True)
 
@@ -621,13 +622,12 @@ if not st.session_state.get("auth", False):
     st.stop()
 
 # ==========================================
-# APP PRINCIPAL (SOLO SI ESTÁ LOGUEADO)
+# 4. APP PRINCIPAL (SOLO SI ESTÁ LOGUEADO)
 # ==========================================
-# El código solo llegará aquí si auth == True
 with st.sidebar:
     st.markdown("### 🩺 **EpiDiagnosis Pro**")
     st.write(f"👤 {st.session_state.get('user')}")
-    st.write(f"🎫 {st.session_state.get('role').upper()}")
+    st.write(f"🎫 {st.session_state.get('role', 'guest').upper()}")
     st.markdown("---")
 
     opciones = [
@@ -646,15 +646,13 @@ with st.sidebar:
     menu = st.radio("📋 MÓDULOS CIENTÍFICOS", opciones)
     st.markdown("---")
 
-    if st.button("🚪 Cerrar Sesión"):
+    if st.button("🚪 Cerrar Sesión", use_container_width=True):
         st.session_state.auth = False
         st.rerun()
 
     st.markdown("---")
     st.info("📞 Soporte: (+57) 3113682907\n📧 j.collazosmd@gmail.com")
-
-# Aquí continúa el renderizado del módulo seleccionado en 'menu'
-
+    
     # ================= ROUTING =================
     if menu == "🏠 Dashboard & Cloud":
         render_dashboard()
@@ -1962,7 +1960,9 @@ with st.sidebar:
                 with col_adj[int(pct*5)-1]:
                     st.metric(f"+{pct*100:.0f}% pérdida", f"N = {adj_total:,}")
                     st.caption(f"n1={adj_n1:,}, n2={adj_n2:,}")
-    
+
+        pass 
+        
     elif menu == "📈 Vigilancia & IA":
         render_ai_module()
 
@@ -3921,8 +3921,9 @@ def render_bioinformatics_module(menu: str):
 
         st.info("💡 Después del pago, comunícate con soporte para activar tu licencia Premium.")
 
+    pass
     elif menu == "⚙️ Admin":
-        render_admin_module()
+          render_admin_module()
     db = load_users()
 
     st.subheader("📊 Usuarios Registrados")
@@ -3993,6 +3994,7 @@ def render_bioinformatics_module(menu: str):
         admins = sum(1 for u in db.values() if u.get("role") == "admin")
         st.metric("Administradores", admins)
 
+    pass
 # ==========================================
 # FOOTER
 # ==========================================
