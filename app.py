@@ -3,7 +3,7 @@ EpiDiagnosis Pro v6.0 - Aplicación Completa de Epidemiología y Bioestadística
 ================================================================================
 Módulos incluidos:
 1. Dashboard & Cloud (módulos existentes v5.2)
-2. Calculadora 2x2 y Tamaño de Muestra
+2. Calculadora 2x2 y Tamaño  Muestra
 3. Bioestadística Avanzada (4 tabs)
 4. PRISMA Flowchart
 5. Forest Plot
