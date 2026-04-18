@@ -523,11 +523,19 @@ if not st.session_state.get("auth", False):
 # LOGIN / REGISTRO
 # ==========================================
 if not st.session_state.get("auth", False):
+    # 🔥 OCULTAR SIDEBAR COMPLETAMENTE
+    st.markdown("""
+        <style>
+            section[data-testid="stSidebar"] {
+                display: none !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
 
+    # 🔐 LOGIN
     st.title("🔐 Iniciar Sesión")
 
-    c1, c2 = st.columns(2)  # ✅ FIX
-
+    c1, c2 = st.columns(2)
     # ================= LOGIN =================
     with c1:
         st.markdown("### 🔐 Acceso al Sistema")
