@@ -2230,69 +2230,6 @@ else:
     elif menu == "📚 Revisión de Literatura":
         render_literature_module()
 
-    elif menu == "📉 Supervivencia (KM)":
-        render_survival_module()
-
-    elif menu == "🎯 Curvas ROC":
-        render_roc_module()
-
-    elif menu == "🗺️ Mapas Geográficos":
-        render_geographic_maps_module()
-
-    elif menu == "🧬 Bioinformática":
-        render_bioinformatics_module()
-
-    elif menu == "💳 Mi Suscripción":
-        render_subscription_module()
-
-    elif menu == "⚙️ Admin":
-        render_admin_module()
-        
-    # ==========================================# ==========================================
-# MÓDULO 1: DASHBOARD
-# ==========================================
-if menu == "🏠 Dashboard & Cloud":
-    st.header("📂 Conector de Datos Inteligente")
-# ==========================================
-# MÓDULO 2: LIMPIEZA DE DATOS
-# ==========================================
-elif menu == "🧹 Limpieza de Datos":
-    st.header("🧹 Refinería de Datos Pro")
-
-
-    
-# ==========================================
-# MÓDULO 3: BIOESTADÍSTICA BÁSICA
-# ==========================================
-elif menu == "📊 Bioestadística":
-    st.header("📊 Rigor Bioestadístico")
-
-                
-# ==========================================
-# MÓDULO 4: CALCULADORA 2x2
-# ==========================================
-elif menu == "🔢 Calculadora 2x2":
-    st.header("🔢 Calculadora de Tablas 2x2")
-    st.markdown("### Configure su tabla de contingencia")
-
-# ==========================================
-# MÓDULO 5: TAMAÑO DE MUESTRA
-# ==========================================
-elif menu == "📏 Tamaño de Muestra":
-    st.header("📏 Calculadora de Tamaño de Muestra")
-
-# ==========================================
-# MÓDULO 6: VIGILANCIA 6.0 (AVANZADO) - SEIR COMPLETO
-# ==========================================
-elif menu == "📈 Vigilancia & IA":
-    st.header("📈 Vigilancia Epidemiológica Avanzada v6.0 (Modelo SEIR)")
-
-                
-# ==========================================
-# MÓDULO UNIFICADO OPTIMIZADO: REVISIÓN DE LITERATURA
-# ==========================================
-elif menu == "📚 Revisión de Literatura":
-    render_literature_module()
 
 # ==========================================
 # CLASE: MANEJADOR DE ESTADO CENTRALIZADO
@@ -2744,11 +2681,10 @@ def render_literature_review_module(menu: str):
 
     with tab_quality:
         render_quality_tab()
-        # ==========================================
-# MÓDULO 12: SUPERVIVENCIA (KAPLAN-MEIER)
-# ==========================================
-if menu == "📉 Supervivencia (KM)":
-    render_survival_module()
+        
+        
+    elif menu == "📉 Supervivencia (KM)":
+        render_survival_module()
 
 
 # ==========================================
@@ -3081,13 +3017,10 @@ def render_survival_module():
     with tabs[2]:
         render_advanced_analysis()
 
+    elif menu == "🎯 Curvas ROC":
+        render_roc_module()
 
-# ==========================================
-# ROC FIX
-# ==========================================
-if menu == "🎯 Curvas ROC":
-    render_roc_module()
-    
+
 # ==========================================
 # FUNCIONES HELPER
 # ==========================================
@@ -3333,13 +3266,10 @@ def render_roc_module(menu: str):
 
 if __name__ == "__main__":
     st.set_page_config(page_title="Curvas ROC", layout="wide")
-    render_roc_module("🎯 Curvas ROC")
+
     
-    # ==========================================
-# MÓDULO 14 OPTIMIZADO: MAPAS GEOGRÁFICOS
-# ==========================================
-elif menu == "🗺️ Mapas Geográficos":
-     render_geographic_maps_module(menu)
+    elif menu == "🗺️ Mapas Geográficos":
+        render_geographic_maps_module()
 
 
 # ==========================================
@@ -3673,13 +3603,10 @@ def render_geographic_maps_module(menu: str):
 if __name__ == "__main__":
     st.set_page_config(page_title="Mapas Geográficos", layout="wide")
     render_geographic_maps_module("🗺️ Mapas Geográficos")
+    
+    elif menu == "🧬 Bioinformática":
+        render_bioinformatics_module()
 
-# ==========================================
-# MÓDULO 15 OPTIMIZADO: BIOINFORMÁTICA
-# ==========================================
-
-elif menu == "🧬 Bioinformática":
-     render_bioinformatics_module(menu)
 
 # ==========================================
 # CONSTANTES
@@ -3916,11 +3843,8 @@ def render_bioinformatics_module(menu: str):
                 plt.tight_layout()
                 st.pyplot(fig)
 
-    # ==========================================
-# MÓDULO 16: MI SUSCRIPCIÓN (USUARIOS)
-# ==========================================
-if menu == "💳 Mi Suscripción":
-    st.header("💳 Gestión de Suscripción")
+    elif menu == "💳 Mi Suscripción":
+        render_subscription_module()
 
     db = load_users()
     user_data = db.get(st.session_state.user, {})
@@ -4003,12 +3927,8 @@ if menu == "💳 Mi Suscripción":
 
         st.info("💡 Después del pago, comunícate con soporte para activar tu licencia Premium.")
 
-# ==========================================
-# MÓDULO 17: ADMIN
-# ==========================================
-if menu == "⚙️ Admin":
-    st.header("🔑 Panel de Administración")
-
+    elif menu == "⚙️ Admin":
+        render_admin_module()
     db = load_users()
 
     st.subheader("📊 Usuarios Registrados")
