@@ -2112,42 +2112,49 @@ if uploaded:
     
     # 2. Aseguramos que se guarde en el archivo .json exclusivo de este usuario
     if "user_email" in st.session_state:
-        # Convertimos el DataFrame a diccionario para poder guardarlo en JSON sin errores
+        # Convertimos el DataFrame a diccionario para poder guardarlo en JSON
         datos_para_guardar = {
             "survival_data": st.session_state.survival_data.to_dict(orient="records")
         }
-        # Usamos tu función save_user_data que ya tienes configurada
+        # Usamos tu función save_user_data
         save_user_data(st.session_state.user_email, datos_para_guardar)
     
-    st.success(f"✅ {len(st.session_state.survival_data)} registros cargados y guardados de forma privada!")
+    st.success(f"✅ {len(st.session_state.survival_data)} registros cargados y guardados!")
+
+# El siguiente bloque debe estar al mismo nivel que el "if uploaded" 
+# o dentro de él, pero con la indentación correcta (4 espacios)
+if st.session_state.get('survival_data') is not None:
+    df = st.session_state.survival_data
+    edited = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+    st.session_state.survival_data = edited
     
-    if st.session_state.survival_data is not None:
-                df = st.session_state.survival_data
-                edited = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-                st.session_state.survival_data = edited
-                persist_user_data()
-                col_stats = st.columns(4)
-                col_stats[0].metric("Muestras", len(edited))
-                col_stats[1].metric("Eventos", int(edited['Evento'].sum()))
-                col_stats[2].metric("Censuras", int(len(edited) - edited['Evento'].sum()))
-                col_stats[3].metric("Tiempo medio", f"{edited['Tiempo'].mean():.1f}")
+    # Nota: Asegúrate de que persist_user_data() esté definida en tu código
+    # persist_user_data() 
+    
+    col_stats = st.columns(4)
+    col_stats[0].metric("Muestras", len(edited))
+    col_stats[1].metric("Eventos", int(edited['Evento'].sum()))
+    col_stats[2].metric("Censuras", int(len(edited) - edited['Evento'].sum()))
+    col_stats[3].metric("Tiempo medio", f"{edited['Tiempo'].mean():.1f}")
 
-        with tabs[1]:
-            st.markdown("### 📈 Curva de Kaplan-Meier")
-            df = st.session_state.survival_data
-            if df is not None:
-                num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-                text_cols = [c for c in df.columns if c not in num_cols]
+    # Asegúrate de que 'tabs' haya sido definido previamente con st.tabs()
+    with tabs[1]:
+        st.markdown("### 📈 Curva de Kaplan-Meier")
+        df = st.session_state.survival_data
+        
+        # Filtrar columnas numéricas y de texto
+        num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        text_cols = [c for c in df.columns if c not in num_cols]
 
-                col_setup = st.columns(3)
-                with col_setup[0]:
-                    time_col = st.selectbox("⏱️ Tiempo:", num_cols)
-                with col_setup[1]:
-                    event_col = st.selectbox("⚠️ Evento:", num_cols)
-                with col_setup[2]:
-                    group_by = st.selectbox("👥 Agrupar:", ['Ninguno'] + text_cols)
-
-                if st.button("📊 GENERAR CURVA KM", use_container_width=True):
+        col_setup = st.columns(3)
+        with col_setup[0]:
+            time_col = st.selectbox("⏱️ Tiempo:", num_cols)
+        with col_setup[1]:
+            event_col = st.selectbox("⚠️ Evento:", num_cols)
+        with col_setup[2]:
+            group_by = st.selectbox("👥 Agrupar:", ['Ninguno'] + text_cols)
+        
+    if st.button("📊 GENERAR CURVA KM", use_container_width=True):
                     def calculate_km(time, event):
                         df_km = pd.DataFrame({'time': time, 'event': event}).sort_values('time')
                         times, events = df_km['time'].values, df_km['event'].values
