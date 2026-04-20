@@ -2119,33 +2119,27 @@ else:
 
             uploaded = st.file_uploader("📂 Cargar CSV:", type="csv")
 
-if uploaded:
-    # 1. Guardamos el CSV en la memoria privada del usuario actual
-    st.session_state.survival_data = pd.read_csv(uploaded)
-    
-    # 2. Aseguramos que se guarde en el archivo .json exclusivo de este usuario
-    if "user_email" in st.session_state:
-        # Convertimos el DataFrame a diccionario para poder guardarlo en JSON sin errores
-        datos_para_guardar = {
-            "survival_data": st.session_state.survival_data.to_dict(orient="records")
-        }
-        # Usamos tu función save_user_data que ya tienes configurada
-        save_user_data(st.session_state.user_email, datos_para_guardar)
-    
-    st.success(f"✅ {len(st.session_state.survival_data)} registros cargados y guardados de forma privada!")
+            if uploaded:
+                st.session_state.survival_data = pd.read_csv(uploaded)
+                if "user_email" in st.session_state:
+                    datos_para_guardar = {
+                        "survival_data": st.session_state.survival_data.to_dict(orient="records")
+                    }
+                    save_user_data(st.session_state.user_email, datos_para_guardar)
+                st.success(f"✅ {len(st.session_state.survival_data)} registros cargados y guardados de forma privada!")
 
-if st.session_state.survival_data is not None:
-    df = st.session_state.survival_data
-    edited = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-    st.session_state.survival_data = edited
-    persist_user_data()
-    col_stats = st.columns(4)
-    col_stats[0].metric("Muestras", len(edited))
-    col_stats[1].metric("Eventos", int(edited['Evento'].sum()))
-    col_stats[2].metric("Censuras", int(len(edited) - edited['Evento'].sum()))
-    col_stats[3].metric("Tiempo medio", f"{edited['Tiempo'].mean():.1f}")
-    
-    with tabs[1]:
+            if st.session_state.survival_data is not None:
+                df = st.session_state.survival_data
+                edited = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+                st.session_state.survival_data = edited
+                persist_user_data()
+                col_stats = st.columns(4)
+                col_stats[0].metric("Muestras", len(edited))
+                col_stats[1].metric("Eventos", int(edited['Evento'].sum()))
+                col_stats[2].metric("Censuras", int(len(edited) - edited['Evento'].sum()))
+                col_stats[3].metric("Tiempo medio", f"{edited['Tiempo'].mean():.1f}")
+                
+                with tabs[1]:
             st.markdown("### 📈 Curva de Kaplan-Meier")
             df = st.session_state.survival_data
             if df is not None:
