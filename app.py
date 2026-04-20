@@ -1242,7 +1242,7 @@ else:
 
                 if st.button("🔬 EJECUTAR ANÁLISIS", use_container_width=True):
                     with st.spinner("⏳ Procesando..."):
-                        _, _, _, stats = get_heavy_imports()
+                        _, _, _, stats, *_ = get_heavy_imports()
                         clean_data = df[[vn, vc]].dropna()
                         grupos_data = {g: clean_data[clean_data[vc] == g][vn].values for g in clean_data[vc].unique()}
                         grupos = [g for g in grupos_data.values() if len(g) > 0]
