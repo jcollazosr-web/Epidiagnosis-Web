@@ -2084,230 +2084,186 @@ else:
                         balance_df = pd.DataFrame(result_psm['balance_metrics']).T
                         st.dataframe(balance_df, use_container_width=True)
 
-    # ==========================================
-    # MÓDULO: SUPERVIVENCIA MEJORADO (COX/POISSON)
-    # ==========================================
-    elif menu == "📉 Supervivencia (KM)":
-        st.header("📉 Análisis de Supervivencia V7.0 - Kaplan-Meier, Cox y Poisson")
+# Nota: Asegúrate de que persist_user_data() esté definida en tu código
+# persist_user_data() 
 
-        tabs = st.tabs(["📝 Datos", "📈 Kaplan-Meier", "📊 Cox PH", "📈 Poisson"])
+col_stats = st.columns(4)
+col_stats[0].metric("Muestras", len(edited))
+col_stats[1].metric("Eventos", int(edited['Evento'].sum()))
+col_stats[2].metric("Censuras", int(len(edited) - edited['Evento'].sum()))
+col_stats[3].metric("Tiempo medio", f"{edited['Tiempo'].mean():.1f}")
 
-        with tabs[0]:
-            st.markdown("### 📝 Datos de Supervivencia")
-            if st.session_state.survival_data is None:
-                np.random.seed(42)
-                st.session_state.survival_data = pd.DataFrame({
-                    'ID': range(1, 101),
-                    'Tiempo': np.concatenate([np.random.exponential(30, 50), np.random.exponential(20, 50)]).round(1),
-                    'Evento': np.random.binomial(1, 0.4, 100),
-                    'Grupo': ['Tratamiento'] * 50 + ['Control'] * 50,
-                    'Edad': np.random.randint(30, 80, 100),
-                    'Sexo': np.random.choice(['M', 'F'], 100)
-                })
-
-            uploaded = st.file_uploader("📂 Cargar CSV:", type="csv")
-if uploaded:
-    # 1. Guardamos el CSV en la memoria privada del usuario actual
-    st.session_state.survival_data = pd.read_csv(uploaded)
-    
-    # 2. Aseguramos que se guarde en el archivo .json exclusivo de este usuario
-    if "user_email" in st.session_state:
-        # Convertimos el DataFrame a diccionario para poder guardarlo en JSON
-        datos_para_guardar = {
-            "survival_data": st.session_state.survival_data.to_dict(orient="records")
-        }
-        # Usamos tu función save_user_data
-        save_user_data(st.session_state.user_email, datos_para_guardar)
-    
-    st.success(f"✅ {len(st.session_state.survival_data)} registros cargados y guardados!")
-
-# El siguiente bloque debe estar al mismo nivel que el "if uploaded" 
-# o dentro de él, pero con la indentación correcta (4 espacios)
-if st.session_state.get('survival_data') is not None:
+# Asegúrate de que 'tabs' haya sido definido previamente con st.tabs()
+with tabs[1]:
+    st.markdown("### 📈 Curva de Kaplan-Meier")
     df = st.session_state.survival_data
-    edited = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-    st.session_state.survival_data = edited
     
-    # Nota: Asegúrate de que persist_user_data() esté definida en tu código
-    # persist_user_data() 
-    
-    col_stats = st.columns(4)
-    col_stats[0].metric("Muestras", len(edited))
-    col_stats[1].metric("Eventos", int(edited['Evento'].sum()))
-    col_stats[2].metric("Censuras", int(len(edited) - edited['Evento'].sum()))
-    col_stats[3].metric("Tiempo medio", f"{edited['Tiempo'].mean():.1f}")
+    # Filtrar columnas numéricas y de texto
+    num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    text_cols = [c for c in df.columns if c not in num_cols]
 
-    # Asegúrate de que 'tabs' haya sido definido previamente con st.tabs()
-    with tabs[1]:
-        st.markdown("### 📈 Curva de Kaplan-Meier")
+    col_setup = st.columns(3)
+    with col_setup[0]:
+        time_col = st.selectbox("⏱️ Tiempo:", num_cols)
+    with col_setup[1]:
+        event_col = st.selectbox("⚠️ Evento:", num_cols)
+    with col_setup[2]:
+        group_by = st.selectbox("👥 Agrupar:", ['Ninguno'] + text_cols)
+    
+if st.button("📊 GENERAR CURVA KM", use_container_width=True):
+                def calculate_km(time, event):
+                    df_km = pd.DataFrame({'time': time, 'event': event}).sort_values('time')
+                    times, events = df_km['time'].values, df_km['event'].values
+                    n = len(times)
+                    unique_times = np.unique(times[events == 1])
+                    survival_times, survival_probs = [0], [1.0]
+                    survived = n
+                    for t in unique_times:
+                        d = np.sum(events[times == t])
+                        r = np.sum(times >= t)
+                        if r > 0:
+                            survived = survived * (1 - d / r)
+                            survival_times.append(t)
+                            survival_probs.append(survived / n)
+                    survival_times.append(times.max())
+                    survival_probs.append(survival_probs[-1])
+                    return {'times': np.array(survival_times), 'survival': np.array(survival_probs)}
+
+                results = {}
+                if group_by == 'Ninguno':
+                    results['Global'] = calculate_km(df[time_col].values, df[event_col].values)
+                else:
+                    for group in df[group_by].unique():
+                        mask = df[group_by] == group
+                        results[str(group)] = calculate_km(df.loc[mask, time_col].values, df.loc[mask, event_col].values)
+
+                fig, ax = plt.subplots(figsize=(10, 6))
+                colors = {'Tratamiento': '#3498db', 'Control': '#e74c3c', 'Global': '#2ecc71'}
+                for name, data in results.items():
+                    ax.step(data['times'], data['survival'], where='post', color=colors.get(name, '#3498db'), linewidth=2.5, label=name)
+                ax.set_xlabel('Tiempo')
+                ax.set_ylabel('Probabilidad de Supervivencia')
+                ax.set_title('Curva de Kaplan-Meier')
+                ax.legend(loc='best')
+                ax.grid(True, alpha=0.3)
+                ax.set_xlim(left=0)
+                ax.set_ylim(0, 1.05)
+                st.pyplot(fig)
+
+    with tabs[2]:
+        st.markdown("### 📊 Regresión de Cox (Hazard Ratios Ajustados)")
+        st.info("Cox PH permite calcular Hazard Ratios ajustados por múltiples variables")
+
         df = st.session_state.survival_data
-        
-        # Filtrar columnas numéricas y de texto
-        num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        text_cols = [c for c in df.columns if c not in num_cols]
+        if df is not None:
+            num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+            text_cols = [c for c in df.columns if c not in num_cols]
 
-        col_setup = st.columns(3)
-        with col_setup[0]:
-            time_col = st.selectbox("⏱️ Tiempo:", num_cols)
-        with col_setup[1]:
-            event_col = st.selectbox("⚠️ Evento:", num_cols)
-        with col_setup[2]:
-            group_by = st.selectbox("👥 Agrupar:", ['Ninguno'] + text_cols)
-        
-    if st.button("📊 GENERAR CURVA KM", use_container_width=True):
-                    def calculate_km(time, event):
-                        df_km = pd.DataFrame({'time': time, 'event': event}).sort_values('time')
-                        times, events = df_km['time'].values, df_km['event'].values
-                        n = len(times)
-                        unique_times = np.unique(times[events == 1])
-                        survival_times, survival_probs = [0], [1.0]
-                        survived = n
-                        for t in unique_times:
-                            d = np.sum(events[times == t])
-                            r = np.sum(times >= t)
-                            if r > 0:
-                                survived = survived * (1 - d / r)
-                                survival_times.append(t)
-                                survival_probs.append(survived / n)
-                        survival_times.append(times.max())
-                        survival_probs.append(survival_probs[-1])
-                        return {'times': np.array(survival_times), 'survival': np.array(survival_probs)}
+            col_cox = st.columns([1, 1, 1])
+            with col_cox[0]:
+                time_col = st.selectbox("Tiempo:", num_cols, key="cox_time")
+            with col_cox[1]:
+                event_col = st.selectbox("Evento:", num_cols, key="cox_event")
+            with col_cox[2]:
+                covariables = st.multiselect("Covariables:", [c for c in df.columns if c not in [time_col, event_col]])
 
-                    results = {}
-                    if group_by == 'Ninguno':
-                        results['Global'] = calculate_km(df[time_col].values, df[event_col].values)
-                    else:
-                        for group in df[group_by].unique():
-                            mask = df[group_by] == group
-                            results[str(group)] = calculate_km(df.loc[mask, time_col].values, df.loc[mask, event_col].values)
+            if st.button("📊 AJUSTAR COX PH", use_container_width=True):
+                with st.spinner("Ajustando modelo..."):
+                    KaplanMeierFitter, CoxPHFitter, _, _, _, _ = get_analysis_imports()
 
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    colors = {'Tratamiento': '#3498db', 'Control': '#e74c3c', 'Global': '#2ecc71'}
-                    for name, data in results.items():
-                        ax.step(data['times'], data['survival'], where='post', color=colors.get(name, '#3498db'), linewidth=2.5, label=name)
-                    ax.set_xlabel('Tiempo')
-                    ax.set_ylabel('Probabilidad de Supervivencia')
-                    ax.set_title('Curva de Kaplan-Meier')
-                    ax.legend(loc='best')
-                    ax.grid(True, alpha=0.3)
-                    ax.set_xlim(left=0)
-                    ax.set_ylim(0, 1.05)
-                    st.pyplot(fig)
+                    # Preparar dataframe para Cox
+                    df_cox = df[[time_col, event_col] + covariables].dropna()
+                    df_cox = df_cox.copy()
 
-        with tabs[2]:
-            st.markdown("### 📊 Regresión de Cox (Hazard Ratios Ajustados)")
-            st.info("Cox PH permite calcular Hazard Ratios ajustados por múltiples variables")
+                    # Convertir variables categóricas
+                    for col in covariables:
+                        if df_cox[col].dtype == 'object':
+                            df_cox[col] = pd.factorize(df_cox[col])[0]
 
-            df = st.session_state.survival_data
-            if df is not None:
-                num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-                text_cols = [c for c in df.columns if c not in num_cols]
+                    try:
+                        cph = CoxPHFitter()
+                        cph.fit(df_cox, duration_col=time_col, event_col=event_col)
 
-                col_cox = st.columns([1, 1, 1])
-                with col_cox[0]:
-                    time_col = st.selectbox("Tiempo:", num_cols, key="cox_time")
-                with col_cox[1]:
-                    event_col = st.selectbox("Evento:", num_cols, key="cox_event")
-                with col_cox[2]:
-                    covariables = st.multiselect("Covariables:", [c for c in df.columns if c not in [time_col, event_col]])
+                        st.markdown("### Resultados del Modelo Cox PH")
+                        st.dataframe(cph.summary, use_container_width=True)
 
-                if st.button("📊 AJUSTAR COX PH", use_container_width=True):
-                    with st.spinner("Ajustando modelo..."):
-                        KaplanMeierFitter, CoxPHFitter, _, _, _, _ = get_analysis_imports()
+                        # Forest plot de HR
+                        fig, ax = plt.subplots(figsize=(10, max(3, len(covariables) * 0.8)))
+                        hr = np.exp(cph.confidence_intervals_.values)
+                        y_pos = np.arange(len(covariables))
+                        ax.scatter(hr[:, 0], y_pos, color='blue')
+                        ax.errorbar(hr[:, 0], y_pos, xerr=[hr[:, 0] - cph.confidence_intervals_.values[:, 0],
+                                                           cph.confidence_intervals_.values[:, 1] - hr[:, 0]], fmt='o', color='blue')
+                        ax.axvline(x=1, color='red', linestyle='--')
+                        ax.set_yticks(y_pos)
+                        ax.set_yticklabels(covariables)
+                        ax.set_xlabel('Hazard Ratio (IC 95%)')
+                        ax.set_title('Forest Plot - Hazard Ratios')
+                        plt.tight_layout()
+                        st.pyplot(fig)
 
-                        # Preparar dataframe para Cox
-                        df_cox = df[[time_col, event_col] + covariables].dropna()
-                        df_cox = df_cox.copy()
+                        # Métricas
+                        col_hr = st.columns(3)
+                        with col_hr[0]:
+                            st.metric("Log-Likelihood", f"{cph.log_likelihood_:.2f}")
+                        with col_hr[1]:
+                            st.metric("AIC", f"{cph.AIC_:.2f}")
+                        with col_hr[2]:
+                            concordance = cph.concordance_index_
+                            st.metric("Concordance", f"{concordance:.3f}")
 
-                        # Convertir variables categóricas
-                        for col in covariables:
-                            if df_cox[col].dtype == 'object':
-                                df_cox[col] = pd.factorize(df_cox[col])[0]
+                    except Exception as e:
+                        st.error(f"Error en Cox PH: {e}")
 
-                        try:
-                            cph = CoxPHFitter()
-                            cph.fit(df_cox, duration_col=time_col, event_col=event_col)
+    with tabs[3]:
+        st.markdown("### 📈 Regresión de Poisson (Tasas de Incidencia)")
+        st.info("Útil para calcular tasas de incidencia y Hazard Ratios")
 
-                            st.markdown("### Resultados del Modelo Cox PH")
-                            st.dataframe(cph.summary, use_container_width=True)
+        df = st.session_state.survival_data
+        if df is not None:
+            col_poisson = st.columns([1, 1, 1])
+            with col_poisson[0]:
+                time_col = st.selectbox("Tiempo:", df.select_dtypes(include=[np.number]).columns, key="poisson_time")
+            with col_poisson[1]:
+                event_col = st.selectbox("Evento:", df.select_dtypes(include=[np.number]).columns, key="poisson_event")
+            with col_poisson[2]:
+                offset_col = st.selectbox("Offset (exposición):", ['Ninguno'] + list(df.select_dtypes(include=[np.number]).columns))
 
-                            # Forest plot de HR
-                            fig, ax = plt.subplots(figsize=(10, max(3, len(covariables) * 0.8)))
-                            hr = np.exp(cph.confidence_intervals_.values)
-                            y_pos = np.arange(len(covariables))
-                            ax.scatter(hr[:, 0], y_pos, color='blue')
-                            ax.errorbar(hr[:, 0], y_pos, xerr=[hr[:, 0] - cph.confidence_intervals_.values[:, 0],
-                                                               cph.confidence_intervals_.values[:, 1] - hr[:, 0]], fmt='o', color='blue')
-                            ax.axvline(x=1, color='red', linestyle='--')
-                            ax.set_yticks(y_pos)
-                            ax.set_yticklabels(covariables)
-                            ax.set_xlabel('Hazard Ratio (IC 95%)')
-                            ax.set_title('Forest Plot - Hazard Ratios')
-                            plt.tight_layout()
-                            st.pyplot(fig)
+            if st.button("📊 AJUSTAR POISSON", use_container_width=True):
+                with st.spinner("Ajustando modelo..."):
+                    from statsmodels.genmod.generalized_linear_model import GLM
+                    from statsmodels.genmod.families import Poisson
 
-                            # Métricas
-                            col_hr = st.columns(3)
-                            with col_hr[0]:
-                                st.metric("Log-Likelihood", f"{cph.log_likelihood_:.2f}")
-                            with col_hr[1]:
-                                st.metric("AIC", f"{cph.AIC_:.2f}")
-                            with col_hr[2]:
-                                concordance = cph.concordance_index_
-                                st.metric("Concordance", f"{concordance:.3f}")
+                    df_poisson = df[[time_col, event_col]].dropna().copy()
 
-                        except Exception as e:
-                            st.error(f"Error en Cox PH: {e}")
+                    try:
+                        # Offset para exposición
+                        if offset_col != 'Ninguno':
+                            df_poisson['offset'] = np.log(df[offset_col].fillna(1))
+                            poisson_model = GLM(df_poisson[event_col], np.ones(len(df_poisson)),
+                                               family=Poisson(), offset=df_poisson['offset'].values)
+                        else:
+                            df_poisson['offset'] = np.log(df_poisson[time_col])
+                            poisson_model = GLM(df_poisson[event_col], np.ones(len(df_poisson)),
+                                               family=Poisson(), offset=df_poisson['offset'].values)
 
-        with tabs[3]:
-            st.markdown("### 📈 Regresión de Poisson (Tasas de Incidencia)")
-            st.info("Útil para calcular tasas de incidencia y Hazard Ratios")
+                        result = poisson_model.fit()
+                        incidence_rate = df_poisson[event_col].sum() / df_poisson[time_col].sum()
 
-            df = st.session_state.survival_data
-            if df is not None:
-                col_poisson = st.columns([1, 1, 1])
-                with col_poisson[0]:
-                    time_col = st.selectbox("Tiempo:", df.select_dtypes(include=[np.number]).columns, key="poisson_time")
-                with col_poisson[1]:
-                    event_col = st.selectbox("Evento:", df.select_dtypes(include=[np.number]).columns, key="poisson_event")
-                with col_poisson[2]:
-                    offset_col = st.selectbox("Offset (exposición):", ['Ninguno'] + list(df.select_dtypes(include=[np.number]).columns))
+                        col_ir = st.columns(3)
+                        with col_ir[0]:
+                            st.metric("Tasa Incidencia", f"{incidence_rate:.4f}")
+                        with col_ir[1]:
+                            st.metric("Log-Likelihood", f"{result.llf:.2f}")
+                        with col_ir[2]:
+                            st.metric("Deviance", f"{result.deviance:.2f}")
 
-                if st.button("📊 AJUSTAR POISSON", use_container_width=True):
-                    with st.spinner("Ajustando modelo..."):
-                        from statsmodels.genmod.generalized_linear_model import GLM
-                        from statsmodels.genmod.families import Poisson
+                        st.markdown("### Resumen del Modelo Poisson")
+                        st.text(result.summary())
 
-                        df_poisson = df[[time_col, event_col]].dropna().copy()
-
-                        try:
-                            # Offset para exposición
-                            if offset_col != 'Ninguno':
-                                df_poisson['offset'] = np.log(df[offset_col].fillna(1))
-                                poisson_model = GLM(df_poisson[event_col], np.ones(len(df_poisson)),
-                                                   family=Poisson(), offset=df_poisson['offset'].values)
-                            else:
-                                df_poisson['offset'] = np.log(df_poisson[time_col])
-                                poisson_model = GLM(df_poisson[event_col], np.ones(len(df_poisson)),
-                                                   family=Poisson(), offset=df_poisson['offset'].values)
-
-                            result = poisson_model.fit()
-                            incidence_rate = df_poisson[event_col].sum() / df_poisson[time_col].sum()
-
-                            col_ir = st.columns(3)
-                            with col_ir[0]:
-                                st.metric("Tasa Incidencia", f"{incidence_rate:.4f}")
-                            with col_ir[1]:
-                                st.metric("Log-Likelihood", f"{result.llf:.2f}")
-                            with col_ir[2]:
-                                st.metric("Deviance", f"{result.deviance:.2f}")
-
-                            st.markdown("### Resumen del Modelo Poisson")
-                            st.text(result.summary())
-
-                        except Exception as e:
-                            st.error(f"Error en Poisson: {e}")
-
+                    except Exception as e:
+                        st.error(f"Error en Poisson: {e}")
+                        
     # ==========================================
     # MÓDULO: CURVAS ROC
     # ==========================================
