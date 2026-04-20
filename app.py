@@ -2314,14 +2314,14 @@ if st.session_state.survival_data is not None:
                         except Exception as e:
                             st.error(f"Error en Poisson: {e}")
 
-    # ==========================================
+   # ==========================================
     # MÓDULO: CURVAS ROC
     # ==========================================
-        elif menu == "🎯 Curvas ROC":
-            st.header("🎯 Curvas ROC - Evaluación Diagnóstica")
-
+    elif menu == "🎯 Curvas ROC":
+        st.header("🎯 Curvas ROC - Evaluación Diagnóstica")
         tabs = st.tabs(["📝 Datos", "📈 Curva ROC", "📊 Comparación"])
-
+        
+        with tabs[0]:
         with tabs[0]:
             if st.session_state.roc_data is None:
                 np.random.seed(42)
