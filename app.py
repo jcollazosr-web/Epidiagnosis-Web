@@ -2200,7 +2200,7 @@ if st.session_state.survival_data is not None:
                     ax.set_ylim(0, 1.05)
                     st.pyplot(fig)
 
-        with tabs[2]:
+            with tabs[2]:
             st.markdown("### 📊 Regresión de Cox (Hazard Ratios Ajustados)")
             st.info("Cox PH permite calcular Hazard Ratios ajustados por múltiples variables")
 
