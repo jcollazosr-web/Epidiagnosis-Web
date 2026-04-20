@@ -2201,8 +2201,8 @@ if st.session_state.survival_data is not None:
                     st.pyplot(fig)
 
             with tabs[2]:
-            st.markdown("### 📊 Regresión de Cox (Hazard Ratios Ajustados)")
-            st.info("Cox PH permite calcular Hazard Ratios ajustados por múltiples variables")
+                st.markdown("### 📊 Regresión de Cox (Hazard Ratios Ajustados)")
+                st.info("Cox PH permite calcular Hazard Ratios ajustados por múltiples variables")
 
             df = st.session_state.survival_data
             if df is not None:
