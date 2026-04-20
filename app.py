@@ -2317,8 +2317,8 @@ if st.session_state.survival_data is not None:
     # ==========================================
     # MÓDULO: CURVAS ROC
     # ==========================================
-    elif menu == "🎯 Curvas ROC":
-        st.header("🎯 Curvas ROC - Evaluación Diagnóstica")
+        elif menu == "🎯 Curvas ROC":
+            st.header("🎯 Curvas ROC - Evaluación Diagnóstica")
 
         tabs = st.tabs(["📝 Datos", "📈 Curva ROC", "📊 Comparación"])
 
