@@ -2133,7 +2133,7 @@ if uploaded:
     
     st.success(f"✅ {len(st.session_state.survival_data)} registros cargados y guardados de forma privada!")
     
-            if st.session_state.survival_data is not None:
+        if st.session_state.survival_data is not None:
                 df = st.session_state.survival_data
                 edited = st.data_editor(df, num_rows="dynamic", use_container_width=True)
                 st.session_state.survival_data = edited
