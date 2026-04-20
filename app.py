@@ -2264,10 +2264,10 @@ if st.session_state.survival_data is not None:
 
                         except Exception as e:
                             st.error(f"Error en Cox PH: {e}")
-
-        with tabs[3]:
-            st.markdown("### 📈 Regresión de Poisson (Tasas de Incidencia)")
-            st.info("Útil para calcular tasas de incidencia y Hazard Ratios")
+    
+                with tabs[3]:
+                    st.markdown("### 📈 Regresión de Poisson (Tasas de Incidencia)")
+                    st.info("Útil para calcular tasas de incidencia y Hazard Ratios")
 
             df = st.session_state.survival_data
             if df is not None:
